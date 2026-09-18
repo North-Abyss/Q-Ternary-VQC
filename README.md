@@ -65,3 +65,9 @@ After running `main.py`, check the `outputs/` directory for:
 - `cm_*.png`: Confusion matrices.
 - `training_loss.png`: VQC convergence.
 - `shap_*.png`: Explainability plots for clinical interpretability.
+
+## License
+This repository is strictly governed by the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** License.
+- **Attribution:** You must credit this repository (`North-Abyss/Qutrit-QML-SIH`) and its authors.
+- **Non-Commercial:** You may **not** sell this software or use it for commercial profit.
+- **Always FOSS:** Any derivative works must remain Free and Open Source Software under the exact same license terms.

@@ -1,0 +1,4 @@
+numpy
+torch
+pennylane
+scikit-learn

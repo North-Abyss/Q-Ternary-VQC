@@ -2,3 +2,10 @@ numpy
 torch
 pennylane
 scikit-learn
+matplotlib
+seaborn
+shap
+flask
+pandas
+xgboost
+psutil

@@ -10,36 +10,58 @@ This repository contains the core logic for a Hybrid Quantum Machine Learning pi
 ## Technology Stack
 - **Quantum Machine Learning Engine:** PennyLane (Xanadu)
 - **Deep Learning Framework:** PyTorch
-- **Classical ML Baseline:** scikit-learn
-- **Backend API Controller:** Python & Flask (Planned for Phase 3)
-- **Frontend Dashboard:** Flutter (Planned for Phase 3)
+- **Classical ML Baseline:** scikit-learn, XGBoost
+- **Explainable AI (XAI):** SHAP
+- **Backend API:** Flask
+- **Data Pipeline:** pandas, numpy
 
 ## Repository Structure
 ```
 .
 ├── src/
-│   └── core_engine.py       # Core hybrid QML model (PennyLane + PyTorch)
-├── docs/
-│   └── sih_presentation.md  # SIH Idea Submission Template slides
-├── PROJECT_LOG.md           # Active sprint & architecture logs
-├── requirements.txt         # Python dependencies
-└── README.md                # Project documentation
+│   ├── data/                 # Loaders, preprocessor, and 2³→3² compression
+│   ├── quantum/              # Qutrit VQC with CSUM entanglement & data re-uploading
+│   ├── classical/            # Baselines (SVM, RF, XGBoost, MLP)
+│   ├── evaluation/           # Metrics calculation and visualization
+│   ├── explainability/       # SHAP integration
+│   ├── api/                  # Flask REST API
+│   └── main.py               # Unified CLI Runner
+├── outputs/                  # Auto-generated ROC curves, SHAP plots, CMs
+├── tests/                    # Unit tests
+├── README.md
+├── requirements.txt
+└── run.sh
 ```
 
-## Quick Start
-1. Create and activate the virtual environment:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Linux/Mac
-   # or .venv\Scripts\activate on Windows
-   ```
+## Setup Instructions
 
-2. Install dependencies:
+1. **Activate the Virtual Environment (if not already active):**
+   ```bash
+   source .venv/bin/activate
+   ```
+2. **Install Dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Run the core engine to benchmark Quantum Qutrit model against Classical SVM:
-   ```bash
-   python src/core_engine.py
-   ```
+## Running the Pipeline
+
+Run the full end-to-end pipeline (data loading, preprocessing, classical baseline training, quantum model training, evaluation, XAI generation, and API startup).
+
+```bash
+# Run full pipeline with Wisconsin Breast Cancer dataset
+python src/main.py --dataset breast_cancer --n-features 12 --n-layers 3 --epochs 50
+
+# Run full pipeline and start the Flask API
+python src/main.py --start-api
+
+# Skip quantum training (fast classical check)
+python src/main.py --classical-only
+```
+
+## Results & Visualizations
+After running `main.py`, check the `outputs/` directory for:
+- `roc_curves.png`: Comparison of Quantum vs Classical models.
+- `cm_*.png`: Confusion matrices.
+- `training_loss.png`: VQC convergence.
+- `shap_*.png`: Explainability plots for clinical interpretability.

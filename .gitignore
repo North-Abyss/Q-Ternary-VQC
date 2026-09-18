@@ -1,2 +1,17 @@
+# Virtual environment
 .venv/
 __pycache__/
+
+# === PRIVATE UNTIL SEP 30 ===
+# Solution docs, strategy, and presentation — DO NOT COMMIT
+.private/
+SOLUTION.md
+SOLUTION.pdf
+PROJECT_LOG.md
+docs/sih_presentation.md
+docs/pdf-style.css
+md2pdf.sh
+
+# Generated outputs
+*.pdf
+outputs/

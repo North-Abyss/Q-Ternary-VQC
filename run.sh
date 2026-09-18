@@ -14,11 +14,12 @@ fi
 # 2. Activate the virtual environment
 echo "🔄 Activating virtual environment..."
 source .venv/bin/activate
+# To deactivate: deactivate
 
 # 3. Install dependencies
 echo "📥 Installing dependencies (this may take a moment)..."
-pip install --upgrade pip -q
-pip install -r requirements.txt -q
+pip install --upgrade pip
+pip install -r requirements.txt
 
 # 4. Run the hybrid quantum machine learning engine
 echo "⚡ Running Hybrid QML Engine..."

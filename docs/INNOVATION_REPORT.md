@@ -63,6 +63,7 @@ Our quantum model successfully leaped from an initial failing 55% accuracy to 86
 
 ### Execution Logs (Excerpt)
 ```text
+
 Epoch 40/50 | Loss: 0.2764 | Mem: 1.16 GB
 Epoch 50/50 | Loss: 0.2751 | Mem: 1.23 GB
 

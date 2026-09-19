@@ -1,11 +1,13 @@
 from sklearn.svm import SVC
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 import xgboost as xgb
 
 class SVMBaseline:
     def __init__(self, random_state=42):
-        self.model = SVC(kernel='rbf', probability=True, random_state=random_state)
+        base_svm = SVC(kernel='rbf', random_state=random_state)
+        self.model = CalibratedClassifierCV(estimator=base_svm, ensemble=False)
         self.name = "SVM (RBF)"
         
     def fit(self, X, y):
@@ -33,7 +35,7 @@ class RandomForestBaseline:
 
 class XGBoostBaseline:
     def __init__(self, random_state=42):
-        self.model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=random_state)
+        self.model = xgb.XGBClassifier(eval_metric='logloss', random_state=random_state)
         self.name = "XGBoost"
         
     def fit(self, X, y):

@@ -1,6 +1,6 @@
 # 🚀 Egreen Quanta: Breakthroughs & Novelty Report
 
-**[GitHub Repository](https://github.com/North-Abyss/Qutrit-QML-SIH)**
+**Repository:** `North-Abyss/Qutrit-QML-SIH` *(Private until SIH presentation — will be made public post-judging)*
 
 This document outlines the core scientific and architectural achievements of the Egreen Quanta SIH Platform. It explicitly highlights how this solution deviates from traditional Quantum Machine Learning (QML) approaches and establishes a novel paradigm for early disease detection.
 

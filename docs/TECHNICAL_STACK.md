@@ -46,7 +46,7 @@ Standard quantum simulation requires exponential RAM ($3^W$). To prevent the lap
 *   We built a custom `psutil` watchdog to monitor system memory and gracefully halt the script if RAM exceeded safe limits (6GB).
 
 ### D. Model Training & Export
-The models were trained for 30 epochs. After evaluating the ROC curves and F1-scores, the script isolates the perfectly tuned 72 quantum rotation weights and uses `torch.save()` to serialize them into a `models/qutrit_vqc_weights.pt` file. The classical models are similarly saved via `joblib.dump()`.
+The models were trained for 50 epochs. After evaluating the ROC curves and F1-scores, the script isolates the perfectly tuned 72 quantum rotation weights and uses `torch.save()` to serialize them into a `models/qutrit_vqc_weights.pt` file. The classical models are similarly saved via `joblib.dump()`.
 
 ### E. API Instantiation
 Once the `.pt` files are generated, the Flask API boots up. It holds the pre-trained weights in memory, exposing a `/predict` endpoint that can process new patient data in milliseconds without needing to retrain the quantum circuit.

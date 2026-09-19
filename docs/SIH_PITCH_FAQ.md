@@ -73,7 +73,7 @@ If a judge asks: *"The challenge asked you to improve accuracy, but your Quantum
 
 ---
 
-## 5. Usability and Real-World Application
+## 6. Usability and Real-World Application
 
 **Where Will It Be Used?**
 This is designed for highly resource-constrained rural clinics or low-end hospital servers that cannot afford massive GPU clusters but still need advanced AI diagnostics. By proving Quantum Utility on a standard CPU via our memory optimizations, this technology is accessible *today*.
@@ -81,5 +81,3 @@ This is designed for highly resource-constrained rural clinics or low-end hospit
 **Current Prototype Status:**
 *   **Backend / Quantum Engine (100% Ready):** The PyTorch/PennyLane training, compression logic, model saving, and SHAP explainability pipelines are fully functional and tested on real Wisconsin Breast Cancer data.
 *   **Frontend / Usability (30% Ready):** We have scaffolded the Flask REST API. The next immediate step is building the **Flutter mobile/web UI** that allows doctors to upload a CSV/JSON of patient metrics and view the Quantum Model's prediction alongside the SHAP graphs.
-
-

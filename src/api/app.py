@@ -49,7 +49,7 @@ def predict():
         # 2. Impute and Scale (Using the preprocessor fitted on training data)
         # Note: Preprocessor expects DataBundle for fit_transform, 
         # but for single prediction we should refactor it to handle single inputs.
-        # For this SIH demo, we'll do a simplified inference pass.
+        # For this standalone API demo, we'll do a simplified inference pass.
         
         # 3. Feature Selection
         if feature_selector:

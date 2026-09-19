@@ -1,6 +1,6 @@
 # Technical Stack & Methodology Guide
 
-This document breaks down the exact software frameworks, AI models, and technical methodologies used to build the Egreen Quanta platform. It serves as a comprehensive reference for the technical implementation of the SIH project.
+This document breaks down the exact software frameworks, AI models, and technical methodologies used to build the Q-Ternary VQC platform. It serves as a comprehensive reference for the technical implementation of the architecture.
 
 ---
 
@@ -21,7 +21,7 @@ Our platform relies on a carefully curated, modern tech stack designed to bridge
 
 To rigorously test our Quantum architecture, we benchmarked it against four industry-standard classical machine learning models. 
 
-1.  **Qutrit VQC (The Egreen Quanta Model):** Our novel hybrid quantum-classical model. It uses 8 Qutrit wires, 3 Layers, and CSUM entanglement, resulting in a highly efficient **72-parameter** architecture.
+1.  **Qutrit VQC (The Q-Ternary Model):** Our novel hybrid quantum-classical model. It uses 8 Qutrit wires, 3 Layers, and CSUM entanglement, resulting in a highly efficient **72-parameter** architecture.
 2.  **XGBoost:** The current industry gold-standard for tabular data. It builds an ensemble of decision trees. (Achieved 94.74% accuracy).
 3.  **MLP (Classical Neural Network):** A standard Multi-Layer Perceptron using two hidden layers (100 neurons, 50 neurons) representing roughly **3,000+ parameters**.
 4.  **Random Forest:** A classical ensemble learning method that constructs a multitude of decision trees at training time.

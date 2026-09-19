@@ -14,6 +14,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import time
+from tqdm import tqdm
 from data.loader import load_wisconsin_breast_cancer, load_ckd_dataset
 from data.preprocessor import Preprocessor
 from data.feature_selector import FeatureSelector
@@ -32,11 +33,12 @@ def main():
     parser.add_argument("--epochs", type=int, default=50, help="Training epochs for QNN")
     parser.add_argument("--classical-only", action="store_true", help="Skip quantum training, run classical only")
     parser.add_argument("--start-api", action="store_true", help="Start the Flask API after training")
+    parser.add_argument("--max-ram", type=float, default=6.0, help="Maximum RAM limit in GB before halting training")
     
     args = parser.parse_args()
     
     print("===============================================")
-    print("🚀 Starting Egreen Quanta SIH Platform 🚀")
+    print("🚀 Starting QMLPlatform 🚀")
     print(f"Dataset: {args.dataset}")
     print(f"Target Features: {args.n_features}")
     print("===============================================\n")
@@ -104,11 +106,12 @@ def main():
         dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
         
         process = psutil.Process(os.getpid())
-        MAX_MEM_GB = 6.0
-        OVERLOAD_MEM_GB = 7.0
+        MAX_MEM_GB = args.max_ram
+        OVERLOAD_MEM_GB = args.max_ram + 1.0
         
         losses = []
-        for epoch in range(args.epochs):
+        epoch_iterator = tqdm(range(args.epochs), desc="⚛️ Training Q-Ternary VQC", unit="epoch", dynamic_ncols=True)
+        for epoch in epoch_iterator:
             model.train()
             epoch_loss = 0.0
             for batch_X, batch_y in dataloader:
@@ -134,10 +137,13 @@ def main():
             mem_gb = process.memory_info().rss / (1024 ** 3)
             
             if mem_gb > OVERLOAD_MEM_GB:
-                print(f"🚨 CRITICAL WARNING: Memory overloaded at {mem_gb:.2f} GB. Halting training safely.")
+                epoch_iterator.write(f"🚨 CRITICAL WARNING: Memory overloaded at {mem_gb:.2f} GB. Halting training safely.")
                 break
             elif mem_gb > MAX_MEM_GB:
-                print(f"⚠️ WARNING: Memory usage high ({mem_gb:.2f} GB). Close to 6GB limit.")
+                epoch_iterator.write(f"⚠️ WARNING: Memory usage high ({mem_gb:.2f} GB). Close to limit.")
+                
+            # Update progress bar postfix with current loss and memory
+            epoch_iterator.set_postfix({"Loss": f"{avg_loss:.4f}", "RAM(GB)": f"{mem_gb:.2f}"})
                 
             if (epoch + 1) % 10 == 0 or epoch == 0:
                 print(f"Epoch {epoch+1}/{args.epochs} | Loss: {avg_loss:.4f} | Mem: {mem_gb:.2f} GB")
@@ -186,11 +192,11 @@ def main():
         print("✅ Saved Quantum VQC weights to models/qutrit_vqc_weights.pt")
         
         # Save Classical Baselines
-        for c_model in classical_models_trained:
+        for c_model_name, c_model_obj in classical_models_trained.items():
             # Clean filename by replacing spaces with underscores
-            safe_name = c_model.name.replace(" ", "_").lower()
-            joblib.dump(c_model.model, f"models/{safe_name}_baseline.pkl")
-            print(f"✅ Saved Classical {c_model.name} to models/{safe_name}_baseline.pkl")
+            safe_name = c_model_name.replace(" ", "_").lower()
+            joblib.dump(c_model_obj.model, f"models/{safe_name}_baseline.pkl")
+            print(f"✅ Saved Classical {c_model_name} to models/{safe_name}_baseline.pkl")
 
     # 9. API Startup
     if args.start_api:

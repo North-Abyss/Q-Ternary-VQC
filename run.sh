@@ -24,6 +24,8 @@ pip install -r requirements.txt
 # 4. Run the hybrid quantum machine learning engine
 echo "⚡ Running Hybrid QML Engine..."
 echo "==============================================="
+echo "⏳ Loading Heavy Scientific Libraries (PyTorch, PennyLane, XGBoost)..."
 mkdir -p outputs
-python3 src/main.py --dataset breast_cancer --n-features 12 --n-layers 3 --epochs 50 2>&1 | tee outputs/training_log.txt
+export PYTHONUNBUFFERED=1
+python3 src/main.py --dataset breast_cancer --n-features 12 --n-layers 3 --epochs 50 --max-ram 6.0 2>&1 | tee outputs/training_log.txt
 

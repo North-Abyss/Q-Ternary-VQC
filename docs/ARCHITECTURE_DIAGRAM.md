@@ -1,4 +1,4 @@
-# Egreen Quanta Architecture Flow
+# Q-Ternary VQC Architecture Flow
 
 The following Mermaid diagram visualizes the complete end-to-end data pipeline from raw patient features to the final quantum prediction.
 

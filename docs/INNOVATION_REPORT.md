@@ -1,8 +1,8 @@
-# 🚀 Egreen Quanta: Breakthroughs & Novelty Report
+# 🚀 Q-Ternary VQC: Breakthroughs & Novelty Report
 
-**Repository:** `North-Abyss/Qutrit-QML-SIH` *(Private until SIH presentation — will be made public post-judging)*
+**Repository:** `North-Abyss/Q-Ternary-VQC`
 
-This document outlines the core scientific and architectural achievements of the Egreen Quanta SIH Platform. It explicitly highlights how this solution deviates from traditional Quantum Machine Learning (QML) approaches and establishes a novel paradigm for early disease detection.
+This document outlines the core scientific and architectural achievements of the Q-Ternary VQC Platform. It explicitly highlights how this solution deviates from traditional Quantum Machine Learning (QML) approaches and establishes a novel paradigm for data encoding.
 
 ---
 
@@ -55,7 +55,7 @@ By combining a mathematically rigorous **$2^3 \to 3^2$ classical-to-ternary comp
 We measure "victory" by benchmarking our Quantum Qutrit model against the Gold Standard classical models (SVM, Random Forest, XGBoost). 
 In quantum machine learning, if a highly compressed quantum model can approach within 5-10% of a fully optimized XGBoost model, it is considered a massive success demonstrating **Quantum Utility**.
 
-### Official SIH Results (Wisconsin Breast Cancer)
+### Baseline Validation Results (Wisconsin Breast Cancer)
 * **Classical XGBoost Accuracy:** 94.74%
 * **Our Qutrit VQC Accuracy:** **86.84%** (F1 Score: **88.89%**)
 

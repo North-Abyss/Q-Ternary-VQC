@@ -7,11 +7,10 @@ __pycache__/
 .private/
 SOLUTION.md
 SOLUTION.pdf
-PROJECT_LOG.md
 docs/sih_presentation.md
 docs/pdf-style.css
 md2pdf.sh
 
 # Generated outputs
 *.pdf
-outputs/
+outputs/*.txt

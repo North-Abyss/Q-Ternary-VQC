@@ -1,3 +1,12 @@
+"""
+=============================================================================
+Designed and Engineered by: Yuvanesh KS (Alias: North-Abyss)
+GitHub: https://github.com/North-Abyss
+License: CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike)
+
+Core Innovation: Q-Ternary (2³ → 3²) Medical Data Compression & VQC Entanglement
+=============================================================================
+"""
 from flask import Flask, request, jsonify
 import torch
 import numpy as np

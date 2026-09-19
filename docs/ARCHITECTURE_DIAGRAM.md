@@ -1,0 +1,58 @@
+# Egreen Quanta Architecture Flow
+
+The following Mermaid diagram visualizes the complete end-to-end data pipeline from raw patient features to the final quantum prediction.
+
+```mermaid
+
+%%{init: {'flowchart': {'curve': 'basis'}}}%%
+flowchart LR
+    %% Styling (Clean and professional like the reference slide)
+    classDef classical fill:#ffcccc,stroke:#cc0000,stroke-width:2px,color:#990000,text-align:center;
+    classDef process fill:#e6ccff,stroke:#6600cc,stroke-width:2px,color:#330066,text-align:center;
+    classDef quantum fill:#ccffff,stroke:#006699,stroke-width:2px,color:#004466,text-align:center;
+    classDef output fill:#ccffcc,stroke:#009933,stroke-width:2px,color:#006600,text-align:center;
+
+    subgraph Ingestion ["Classical Data Ingestion"]
+        direction TB
+        A["🏥 Raw Clinical Data (12 Features)"]:::classical
+        B["⚙️ PCA & Binarization"]:::classical
+        C["🧩 Group into 3-bit Clusters"]:::classical
+        A --> B --> C
+    end
+
+    subgraph Compression ["Q-Ternary Compression"]
+        direction TB
+        D["📐 Math Mapping (2³ → 3²)"]:::process
+        E["📉 33% Dimensionality Reduction"]:::process
+        F["🔄 Calculate Quantum Angles (θ)"]:::process
+        D --> E --> F
+    end
+
+    subgraph VQC ["Qutrit Variational Quantum Circuit"]
+        direction TB
+        G["⚛️ Data Embedding TRZ(θ)"]:::quantum
+        H["🎛️ Trainable Weights (TRX, TRY, TRZ)"]:::quantum
+        I["🔗 CSUM Ring Entanglement"]:::quantum
+        G --> H --> I
+    end
+
+    subgraph Measurement ["Measurement & Classification"]
+        direction TB
+        N["📏 Gell-Mann Observable (λ₃)"]:::output
+        O["➕ Sum Expectation Values"]:::output
+        P["📈 Sigmoid Activation"]:::output
+        Q{"🩺 Prediction: Cancer (1) / Normal (0)"}:::output
+        N --> O --> P --> Q
+    end
+
+    %% Global Flow and Labeled Connections (Matching the reference slide style)
+    C -- "Binary Clusters" --> D
+    F -- "Angles (θ)" --> G
+    
+    %% Feedback Loop (Matching the blue box loop in reference)
+    I -- "🔁 Re-uploading (N Layers)" --> G
+    
+    %% Final Output
+    I -- "Circuit End" --> N
+
+```

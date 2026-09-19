@@ -9,7 +9,7 @@ This repository contains the core logic for a Hybrid Quantum Machine Learning pi
 
 ## Technology Stack
 - **Quantum Machine Learning Engine:** PennyLane (Xanadu)
-- **Deep Learning Framework:** PyTorch
+- **Deep LeaLearningrning Framework:** PyTorch
 - **Classical ML Baseline:** scikit-learn, XGBoost
 - **Explainable AI (XAI):** SHAP
 - **Backend API:** Flask
@@ -19,18 +19,19 @@ This repository contains the core logic for a Hybrid Quantum Machine Learning pi
 ```
 .
 ├── src/
-│   ├── data/                 # Loaders, preprocessor, and 2³→3² compression
-│   ├── quantum/              # Qutrit VQC with CSUM entanglement & data re-uploading
-│   ├── classical/            # Baselines (SVM, RF, XGBoost, MLP)
-│   ├── evaluation/           # Metrics calculation and visualization
-│   ├── explainability/       # SHAP integration
-│   ├── api/                  # Flask REST API
-│   └── main.py               # Unified CLI Runner
-├── outputs/                  # Auto-generated ROC curves, SHAP plots, CMs
-├── tests/                    # Unit tests
+│   ├── data/              # Loaders, preprocessor, and 2³→3² compression
+│   ├── quantum/           # Qutrit VQC with CSUM entanglement & data re-uploading
+│   ├── classical/         # Baselines (SVM, RF, XGBoost, MLP)
+│   ├── evaluation/        # Metrics calculation and visualization
+│   ├── explainability/    # SHAP integration
+│   ├── api/               # Flask REST API
+│   └── main.py            # Unified CLI Runner
+├── outputs/               # Auto-generated ROC curves, SHAP plots, CMs
+├── tests/                 # Unit tests
 ├── README.md
 ├── requirements.txt
 └── run.sh
+
 ```
 
 ## Setup Instructions
@@ -49,6 +50,7 @@ This repository contains the core logic for a Hybrid Quantum Machine Learning pi
 Run the full end-to-end pipeline (data loading, preprocessing, classical baseline training, quantum model training, evaluation, XAI generation, and API startup).
 
 ```bash
+
 # Run full pipeline with Wisconsin Breast Cancer dataset
 python src/main.py --dataset breast_cancer --n-features 12 --n-layers 3 --epochs 50
 
@@ -57,6 +59,7 @@ python src/main.py --start-api
 
 # Skip quantum training (fast classical check)
 python src/main.py --classical-only
+
 ```
 
 ## Results & Visualizations
@@ -71,3 +74,5 @@ This repository is strictly governed by the **Creative Commons Attribution-NonCo
 - **Attribution:** You must credit this repository (`North-Abyss/Qutrit-QML-SIH`) and its authors.
 - **Non-Commercial:** You may **not** sell this software or use it for commercial profit.
 - **Always FOSS:** Any derivative works must remain Free and Open Source Software under the exact same license terms.
+
+

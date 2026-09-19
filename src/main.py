@@ -1,4 +1,6 @@
 import argparse
+import os
+import joblib
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -167,9 +169,23 @@ def main():
         xai.explain_dataset(bundle_selected.X_test, n_samples=30)
         print("SHAP plots saved to outputs/ directory.")
 
-    # 8. API Startup
+        # 8. Save Trained Models
+        print("\n--- 8. Saving Trained Models to Disk ---")
+        os.makedirs("models", exist_ok=True)
+        # Save Quantum Model Weights
+        torch.save(quantum_model_trained.state_dict(), "models/qutrit_vqc_weights.pt")
+        print("✅ Saved Quantum VQC weights to models/qutrit_vqc_weights.pt")
+        
+        # Save Classical Baselines
+        for c_model in classical_models_trained:
+            # Clean filename by replacing spaces with underscores
+            safe_name = c_model.name.replace(" ", "_").lower()
+            joblib.dump(c_model.model, f"models/{safe_name}_baseline.pkl")
+            print(f"✅ Saved Classical {c_model.name} to models/{safe_name}_baseline.pkl")
+
+    # 9. API Startup
     if args.start_api:
-        print("\n--- 8. Starting Flask API ---")
+        print("\n--- 9. Starting Flask API ---")
         app.preprocessor = preprocessor
         app.feature_selector = selector
         app.quantum_model = quantum_model_trained

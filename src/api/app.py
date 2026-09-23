@@ -5,7 +5,7 @@ GitHub: https://github.com/North-Abyss
 License: CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike)
 =============================================================================
 """
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify, render_template, send_from_directory, send_file
 from flask_cors import CORS
 import torch
 import numpy as np
@@ -16,6 +16,7 @@ import os
 import sys
 import threading
 import subprocess
+import io
 
 # Add parent dir to path so we can import our modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -101,9 +102,10 @@ def upload_dataset():
         return jsonify({"error": "No selected file"}), 400
         
     os.makedirs('data', exist_ok=True)
-    file_path = os.path.join('data', file.filename)
+    filename = str(file.filename) if file.filename else 'upload.csv'
+    file_path = os.path.join('data', filename)
     file.save(file_path)
-    return jsonify({"status": "success", "message": f"Saved as {file_path}", "filename": file.filename})
+    return jsonify({"status": "success", "message": f"Saved as {file_path}", "filename": filename})
 
 def _run_training_subprocess(epochs, layers, dataset):
     global training_state
@@ -121,11 +123,11 @@ def _run_training_subprocess(epochs, layers, dataset):
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=repo_root)
     
-    for line in iter(process.stdout.readline, ''):
-        with training_lock:
-            training_state["logs"].append(line.strip())
-            
-    process.stdout.close()
+    if process.stdout:
+        for line in iter(process.stdout.readline, ''):
+            with training_lock:
+                training_state["logs"].append(line.strip())
+        process.stdout.close()
     process.wait()
     
     with training_lock:
@@ -237,7 +239,7 @@ def download_sample():
     # Only supporting breast_cancer for the demo payload
     bundle = load_wisconsin_breast_cancer()
     df = pd.DataFrame(bundle.X_train[:50], columns=bundle.feature_names)
-    df['target'] = bundle.y_train[:50]
+    df['target'] = bundle.y_train[:50].tolist()
     
     csv_buffer = io.BytesIO()
     df.to_csv(csv_buffer, index=False)
@@ -245,9 +247,77 @@ def download_sample():
     
     return send_file(csv_buffer, download_name=f'sample_{dataset_name}.csv', as_attachment=True, mimetype='text/csv')
 
+@app.route('/predict_batch', methods=['POST'])
+def predict_batch():
+    if quantum_model is None or preprocessor is None:
+        return jsonify({"error": "Quantum model not loaded properly."}), 503
+        
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file uploaded"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+            
+        df = pd.read_csv(file.stream)
+        missing_cols = [col for col in feature_names if col not in df.columns]
+        if missing_cols:
+            return jsonify({"error": f"Missing columns in CSV: {missing_cols}"}), 400
+            
+        X_raw = df[feature_names].values
+        
+        # Process through pipeline
+        X_comp = preprocessor.transform(X_raw)
+        x_tensor = torch.tensor(X_comp, dtype=torch.float32)
+        
+        with torch.no_grad():
+            probs = quantum_model(x_tensor).numpy()
+            
+        preds = (probs >= 0.5).astype(int)
+        
+        # Append predictions to the DataFrame
+        df['Prediction'] = ['Malignant (0)' if p == 0 else 'Benign (1)' for p in preds]
+        df['Confidence'] = [f"{float(p)*100:.2f}%" if p > 0.5 else f"{(1-float(p))*100:.2f}%" for p in probs]
+        
+        csv_buffer = io.BytesIO()
+        df.to_csv(csv_buffer, index=False)
+        csv_buffer.seek(0)
+        
+        return send_file(csv_buffer, download_name='batch_predictions.csv', as_attachment=True, mimetype='text/csv')
+        
+    except Exception as e:
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+@app.route('/model_info', methods=['GET'])
+def get_model_info():
+    history = load_history()
+    if not history:
+        return jsonify({"status": "idle", "message": "No model trained yet."})
+        
+    latest_run = history[-1]
+    return jsonify({
+        "status": "success",
+        "epochs": latest_run.get("epochs"),
+        "layers": latest_run.get("layers"),
+        "dataset": latest_run.get("dataset"),
+        "f1_score": latest_run.get("f1_score"),
+        "timestamp": latest_run.get("timestamp")
+    })
+
+@app.route('/shap_images', methods=['GET'])
+def get_shap_images():
+    # Return the summary plot from the outputs directory
+    outputs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'outputs')
+    filename = 'shap_summary.png'
+    if not os.path.exists(os.path.join(outputs_dir, filename)):
+        return jsonify({"error": "SHAP image not found."}), 404
+        
+    return send_from_directory(outputs_dir, filename)
+
 @app.route('/predict', methods=['POST'])
 def predict():
-    if quantum_model is None:
+    if quantum_model is None or preprocessor is None:
         return jsonify({"error": "Quantum model not loaded properly."}), 503
         
     try:
@@ -256,7 +326,7 @@ def predict():
             if file.filename == '':
                 return jsonify({"error": "No file selected"}), 400
                 
-            df = pd.read_csv(file)
+            df = pd.read_csv(file.stream)
             missing_cols = [col for col in feature_names if col not in df.columns]
             if missing_cols:
                 return jsonify({"error": f"Missing columns in CSV: {missing_cols}"}), 400

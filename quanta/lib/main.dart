@@ -7,6 +7,7 @@ import 'pages/pipeline_page.dart';
 import 'pages/inference_page.dart';
 import 'pages/info_page.dart';
 import 'pages/settings_page.dart';
+import 'pages/history_page.dart';
 
 void main() {
   runApp(
@@ -52,6 +53,7 @@ class _AppShellState extends State<AppShell> {
     DashboardPage(),
     PipelinePage(),
     InferencePage(),
+    HistoryPage(),
     InfoPage(),
     SettingsPage(),
   ];
@@ -60,6 +62,7 @@ class _AppShellState extends State<AppShell> {
     NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
     NavigationDestination(icon: Icon(Icons.hub_outlined), selectedIcon: Icon(Icons.hub), label: 'Pipeline'),
     NavigationDestination(icon: Icon(Icons.bolt_outlined), selectedIcon: Icon(Icons.bolt), label: 'Inference'),
+    NavigationDestination(icon: Icon(Icons.history_outlined), selectedIcon: Icon(Icons.history), label: 'History'),
     NavigationDestination(icon: Icon(Icons.info_outline), selectedIcon: Icon(Icons.info), label: 'Info'),
     NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Settings'),
   ];
@@ -68,6 +71,7 @@ class _AppShellState extends State<AppShell> {
     NavigationRailDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: Text('Dashboard')),
     NavigationRailDestination(icon: Icon(Icons.hub_outlined), selectedIcon: Icon(Icons.hub), label: Text('Pipeline')),
     NavigationRailDestination(icon: Icon(Icons.bolt_outlined), selectedIcon: Icon(Icons.bolt), label: Text('Inference')),
+    NavigationRailDestination(icon: Icon(Icons.history_outlined), selectedIcon: Icon(Icons.history), label: Text('History')),
     NavigationRailDestination(icon: Icon(Icons.info_outline), selectedIcon: Icon(Icons.info), label: Text('Info')),
     NavigationRailDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: Text('Settings')),
   ];

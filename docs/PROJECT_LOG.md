@@ -50,3 +50,21 @@ Build the Flutter frontend and connect it to the Flask `/predict` endpoint.
 - **Dynamic RAM Configuration:** Added a `--max-ram` parameter to `main.py` allowing developers to strictly define the `psutil` memory watchdog limit via the command line. `run.sh` now passes `--max-ram 6.0` by default.
 - **Live Progress Tracking:** Integrated `tqdm` into the `main.py` training loop, pushing real-time percentages, ETAs, loss metrics, and active RAM footprint to the terminal (via `PYTHONUNBUFFERED=1`).
 - **High-Res Visualizations:** Generated 3 new presentation-ready graphs comparing classical vs quantum parameter efficiency for academic publications and LinkedIn.
+
+---
+
+## [2026-09-23] SIH Finalization, UI Polish, & Statistical Rigor
+### 1. Flutter UI (Clinician Interface) Completion
+- **History View:** Built `HistoryPage` to parse and visualize `training_logs.json`.
+- **Batch Inference Panel:** Added robust batch inference CSV upload using `file_picker`, complete with SHAP interpretation graphs natively integrated into the Flutter `InferencePage`.
+- **Breaking API Fixes:** Mitigated deprecation issues in `dart:html` and resolved breaking changes in `file_picker` (v8 -> v13 API shift).
+
+### 2. Zero-Error Strict Compliance
+- Cleaned the entire Pyright typing pipeline for the Python Flask backend.
+- Enforced strict DataBundle patterns and resolved all `np.ndarray` vs `pd.DataFrame` strict-mode typing complaints.
+- Re-architected backend `sys.path` injection to guarantee scalable relative imports for CI/CD pipelines.
+
+### 3. Statistical Rigor (K-Fold CV Harness)
+- Built `test/run_cv_test.py` strictly enforcing `StratifiedKFold(n=5)`.
+- Implemented McNemar's statistical significance testing against classical `RandomForestClassifier`.
+- Ensured perfect data isolation between folds (no data leakage during PCA/Q-Ternary Preprocessing).

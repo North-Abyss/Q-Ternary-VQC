@@ -110,4 +110,30 @@ class ApiService {
       throw Exception('Failed to load feature names');
     }
   }
+  Future<Map<String, dynamic>> getModelInfo() async {
+    final baseUrl = await getBaseUrl();
+    final response = await http.get(Uri.parse('$baseUrl/model_info'));
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load model info');
+    }
+  }
+  
+  Future<List<int>> predictBatch(XFile file) async {
+    final baseUrl = await getBaseUrl();
+    final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/predict_batch'));
+    
+    final bytes = await file.readAsBytes();
+    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: file.name));
+    
+    final response = await request.send();
+    if (response.statusCode == 200) {
+      return await response.stream.toBytes();
+    } else {
+      final error = await response.stream.bytesToString();
+      throw Exception('Batch prediction failed: $error');
+    }
+  }
 }

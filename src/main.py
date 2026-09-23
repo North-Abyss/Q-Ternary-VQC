@@ -92,6 +92,7 @@ def main():
         model = QutritClassifier(n_wires=n_wires, n_layers=args.n_layers).to(device)
         criterion = nn.BCELoss()
         optimizer = optim.Adam(model.parameters(), lr=0.01)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
         
         import psutil
         import gc
@@ -143,10 +144,14 @@ def main():
                 epoch_iterator.write(f"⚠️ WARNING: Memory usage high ({mem_gb:.2f} GB). Close to limit.")
                 
             # Update progress bar postfix with current loss and memory
-            epoch_iterator.set_postfix({"Loss": f"{avg_loss:.4f}", "RAM(GB)": f"{mem_gb:.2f}"})
+            current_lr = optimizer.param_groups[0]['lr']
+            epoch_iterator.set_postfix({"Loss": f"{avg_loss:.4f}", "LR": f"{current_lr:.5f}", "RAM(GB)": f"{mem_gb:.2f}"})
+            
+            # Step the LR scheduler
+            scheduler.step(avg_loss)
                 
             if (epoch + 1) % 10 == 0 or epoch == 0:
-                print(f"🔄 Epoch {epoch+1}/{args.epochs} | Loss: {avg_loss:.4f} | Mem: {mem_gb:.2f} GB")
+                epoch_iterator.write(f"\n🔄 Epoch {epoch+1}/{args.epochs} | Loss: {avg_loss:.4f} | LR: {current_lr:.5f} | Mem: {mem_gb:.2f} GB\n")
                 
         # Evaluate Quantum
         model.eval()
@@ -186,23 +191,35 @@ def main():
 
         # 8. Save Trained Models
         print("\n--- 💾 8. Saving Trained Models to Disk ---")
-        os.makedirs("models", exist_ok=True)
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_dir = f"models/run_{timestamp}"
+        os.makedirs(run_dir, exist_ok=True)
+        
         # Save Quantum Model Weights
-        torch.save(quantum_model_trained.state_dict(), "models/qutrit_vqc_weights.pt")
-        print("✅ Saved Quantum VQC weights to models/qutrit_vqc_weights.pt")
+        torch.save(quantum_model_trained.state_dict(), f"{run_dir}/qutrit_vqc_weights.pt")
+        print(f"✅ Saved Quantum VQC weights to {run_dir}/qutrit_vqc_weights.pt")
         
         # Save Classical Baselines
         for c_model_name, c_model_obj in classical_models_trained.items():
             # Clean filename by replacing spaces with underscores
             safe_name = c_model_name.replace(" ", "_").lower()
-            joblib.dump(c_model_obj.model, f"models/{safe_name}_baseline.pkl")
-            print(f"✅ Saved Classical {c_model_name} to models/{safe_name}_baseline.pkl")
+            joblib.dump(c_model_obj.model, f"{run_dir}/{safe_name}_baseline.pkl")
+            print(f"✅ Saved Classical {c_model_name} to {run_dir}/{safe_name}_baseline.pkl")
             
         # Save Preprocessor and Feature Selector
-        joblib.dump(preprocessor, "models/preprocessor.pkl")
-        joblib.dump(selector, "models/feature_selector.pkl")
-        joblib.dump(bundle_selected.feature_names, "models/feature_names.pkl")
-        print("✅ Saved Preprocessor and Feature Selector to models/")
+        joblib.dump(preprocessor, f"{run_dir}/preprocessor.pkl")
+        joblib.dump(selector, f"{run_dir}/feature_selector.pkl")
+        joblib.dump(bundle_selected.feature_names, f"{run_dir}/feature_names.pkl")
+        print(f"✅ Saved Preprocessor and Feature Selector to {run_dir}/")
+        
+        # Update latest symlink
+        try:
+            if os.path.exists("models/latest") or os.path.islink("models/latest"):
+                os.remove("models/latest")
+            os.symlink(f"run_{timestamp}", "models/latest")
+        except Exception as e:
+            print(f"⚠️ Could not create 'latest' symlink: {e}")
 
     # 9. API Startup
     if args.start_api:

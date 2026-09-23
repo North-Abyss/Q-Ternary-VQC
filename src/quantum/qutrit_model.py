@@ -20,8 +20,9 @@ class QutritClassifier(nn.Module):
         self.n_layers = n_layers
         
         # Initialize trainable weights for the quantum circuit
+        # Use π-scale initialization to break symmetry and avoid barren plateaus
         weight_shape = (n_layers, n_wires, 3)
-        self.q_weights = nn.Parameter(0.1 * torch.randn(weight_shape))
+        self.q_weights = nn.Parameter(torch.empty(weight_shape).uniform_(-np.pi, np.pi))
         
         # Initialize the PennyLane device configured for Qutrit operations
         self.dev = qml.device("default.qutrit", wires=self.n_wires)

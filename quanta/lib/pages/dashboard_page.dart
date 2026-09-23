@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cross_file/cross_file.dart';
 import '../api_service.dart';
 import '../providers/theme_provider.dart';
 
@@ -38,6 +41,84 @@ class _DashboardPageState extends State<DashboardPage> {
         });
       }
     }
+  }
+
+  void _showHistoryDetails(BuildContext context, Map<String, dynamic> run) {
+    final String dataset = run['dataset'] ?? 'Unknown';
+    final int epochs = run['epochs'] ?? 0;
+    final int layers = run['layers'] ?? 0;
+    final String f1Score = run['f1_score'] ?? 'N/A';
+    final bool isSuccess = run['success'] == true;
+    final List<dynamic> rawLogs = run['logs'] ?? [];
+    final String logsText = rawLogs.join('\n');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Run Details - $dataset'),
+        content: SizedBox(
+          width: 800,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Status: ${isSuccess ? 'Success' : 'Failed'}', style: TextStyle(color: isSuccess ? Colors.green : Colors.red, fontWeight: FontWeight.bold)),
+                  Text('F1 Score: $f1Score', style: const TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text('Parameters: Epochs: $epochs, Layers: $layers'),
+              const Divider(),
+              const Text('Logs:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: SingleChildScrollView(
+                    child: SelectableText(
+                      logsText.isEmpty ? 'No logs available.' : logsText,
+                      style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: logsText));
+              if (ctx.mounted) {
+                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Logs copied to clipboard.')));
+              }
+            },
+            icon: const Icon(Icons.copy),
+            label: const Text('Copy Logs'),
+          ),
+          TextButton.icon(
+            onPressed: () async {
+              final bytes = utf8.encode(logsText);
+              final xfile = XFile.fromData(Uint8List.fromList(bytes), name: 'training_logs_$dataset.txt', mimeType: 'text/plain');
+              await xfile.saveTo('training_logs_$dataset.txt');
+            },
+            icon: const Icon(Icons.download),
+            label: const Text('Download Logs'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _cleanupSystem() async {
@@ -184,6 +265,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                     ),
                                     title: Text('Dataset: ${run['dataset']}'),
                                     subtitle: Text('$timeStr  |  Epochs: ${run['epochs']}  |  Layers: ${run['layers']}'),
+                                    onTap: () => _showHistoryDetails(context, run),
                                   );
                                 },
                               ),

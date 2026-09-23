@@ -98,4 +98,16 @@ class ApiService {
       throw Exception('Failed to cleanup: ${response.body}');
     }
   }
+
+  Future<List<String>> getFeatureNames() async {
+    final baseUrl = await getBaseUrl();
+    final response = await http.get(Uri.parse('$baseUrl/feature_names'));
+    
+    if (response.statusCode == 200) {
+      final List<dynamic> names = jsonDecode(response.body)['feature_names'] ?? [];
+      return names.cast<String>();
+    } else {
+      throw Exception('Failed to load feature names');
+    }
+  }
 }

@@ -58,19 +58,23 @@ training_lock = threading.Lock()
 def load_pipeline():
     global preprocessor, feature_selector, quantum_model, feature_names
     try:
-        if not os.path.exists('models/preprocessor.pkl'):
-            print("⚠️ Models directory empty. Please train the model first.")
+        model_dir = "models/"
+        if os.path.exists("models/latest/preprocessor.pkl"):
+            model_dir = "models/latest/"
+            
+        if not os.path.exists(os.path.join(model_dir, 'preprocessor.pkl')):
+            print(f"⚠️ Models directory ({model_dir}) empty. Please train the model first.")
             return
 
-        preprocessor = joblib.load('models/preprocessor.pkl')
-        feature_selector = joblib.load('models/feature_selector.pkl')
-        feature_names = joblib.load('models/feature_names.pkl')
+        preprocessor = joblib.load(os.path.join(model_dir, 'preprocessor.pkl'))
+        feature_selector = joblib.load(os.path.join(model_dir, 'feature_selector.pkl'))
+        feature_names = joblib.load(os.path.join(model_dir, 'feature_names.pkl'))
         
         n_features = len(feature_names)
         n_wires = (n_features // 3) * 2
         
         device = torch.device("cpu")
-        state_dict = torch.load('models/qutrit_vqc_weights.pt', map_location=device, weights_only=True)
+        state_dict = torch.load(os.path.join(model_dir, 'qutrit_vqc_weights.pt'), map_location=device, weights_only=True)
         # Determine n_layers from the saved shape (n_layers, n_wires, 3)
         n_layers = state_dict['q_weights'].shape[0]
         
@@ -78,7 +82,7 @@ def load_pipeline():
         model.load_state_dict(state_dict)
         model.eval()
         quantum_model = model
-        print(f"✅ Pipeline successfully loaded from models/ directory. (VQC Layers: {n_layers})")
+        print(f"✅ Pipeline successfully loaded from {model_dir}. (VQC Layers: {n_layers})")
     except Exception as e:
         print(f"⚠️ Failed to load models: {e}")
 
@@ -128,6 +132,15 @@ def _run_training_subprocess(epochs, layers, dataset):
         training_state["logs"].append(f"Training finished with code {process.returncode}")
         training_state["is_running"] = False
         
+        # Extract F1 score from logs
+        f1_score = "N/A"
+        for line in training_state["logs"]:
+            if "Quantum Model Accuracy:" in line and "F1:" in line:
+                try:
+                    f1_score = line.split("F1:")[1].strip()
+                except IndexError:
+                    pass
+                    
         # Save to history
         import datetime
         history = load_history()
@@ -136,6 +149,8 @@ def _run_training_subprocess(epochs, layers, dataset):
             "epochs": epochs,
             "layers": layers,
             "dataset": dataset,
+            "f1_score": f1_score,
+            "logs": training_state["logs"].copy(),
             "success": process.returncode == 0
         })
         save_history(history)
@@ -182,6 +197,13 @@ def download_model():
 @app.route('/history', methods=['GET'])
 def get_history():
     return jsonify({"status": "success", "history": load_history()})
+
+@app.route('/feature_names', methods=['GET'])
+def get_feature_names():
+    if feature_names is None:
+        return jsonify({"error": "Feature names not loaded."}), 503
+    names_list = feature_names.tolist() if hasattr(feature_names, 'tolist') else list(feature_names)
+    return jsonify({"status": "success", "feature_names": names_list})
 
 @app.route('/cleanup', methods=['POST'])
 def cleanup():

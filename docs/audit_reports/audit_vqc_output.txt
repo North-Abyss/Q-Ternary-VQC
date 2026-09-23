@@ -1,0 +1,37 @@
+/mnt/sda5/Projects/QT/.venv/lib/python3.14/site-packages/sklearn/metrics/_classification.py:1879: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/mnt/sda5/Projects/QT/.venv/lib/python3.14/site-packages/sklearn/metrics/_classification.py:1879: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/mnt/sda5/Projects/QT/.venv/lib/python3.14/site-packages/sklearn/metrics/_classification.py:1879: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+Saved selector type: <class 'data.feature_selector.FeatureSelector'>
+Saved selector method: mutual_info
+Saved selector n_features: 12
+Saved feature names (12): [np.str_('mean radius'), np.str_('mean perimeter'), np.str_('mean area'), np.str_('mean compactness'), np.str_('mean concavity'), np.str_('mean concave points'), np.str_('area error'), np.str_('worst radius'), np.str_('worst perimeter'), np.str_('worst area'), np.str_('worst concavity'), np.str_('worst concave points')]
+X_test_sel shape: (114, 12)
+X_test_comp shape: (114, 8)
+VQC config: n_layers=1, n_wires=8
+
+VQC (SAVED pipeline, n_layers=1):
+  Accuracy:  0.6316 (63.16%)
+  Precision: 0.6316
+  Recall:    1.0000
+  F1 Score:  0.7742
+  Confusion Matrix:
+    TN=0  FP=42
+    FN=0  TP=72
+              precision    recall  f1-score   support
+
+   malignant     0.0000    0.0000    0.0000        42
+      benign     0.6316    1.0000    0.7742        72
+
+    accuracy                         0.6316       114
+   macro avg     0.3158    0.5000    0.3871       114
+weighted avg     0.3989    0.6316    0.4890       114
+
+  Probability distribution:
+    min=0.6318, max=0.6318, mean=0.6318, std=0.0000
+    Predicted class 0 (malignant): 0 samples
+    Predicted class 1 (benign): 114 samples
+    True class 0 (malignant): 42 samples
+    True class 1 (benign): 72 samples

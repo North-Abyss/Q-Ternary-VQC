@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../api_service.dart';
 
 class InferencePage extends StatefulWidget {
@@ -13,8 +14,28 @@ class _InferencePageState extends State<InferencePage> {
   bool _loading = false;
   Map<String, dynamic>? _result;
   
-  // Dummy 12 features for breast cancer
-  final List<TextEditingController> _controllers = List.generate(12, (index) => TextEditingController(text: '0.0'));
+  List<String> _featureNames = [];
+  List<TextEditingController> _controllers = List.generate(12, (index) => TextEditingController(text: '0.0'));
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFeatureNames();
+  }
+
+  Future<void> _loadFeatureNames() async {
+    try {
+      final names = await _apiService.getFeatureNames();
+      if (mounted) {
+        setState(() {
+          _featureNames = names;
+          _controllers = List.generate(names.length, (index) => TextEditingController(text: '0.0'));
+        });
+      }
+    } catch (e) {
+      debugPrint('Could not load feature names: $e');
+    }
+  }
 
   Future<void> _runInference() async {
     setState(() {
@@ -59,18 +80,35 @@ class _InferencePageState extends State<InferencePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Clinical Features', style: Theme.of(context).textTheme.titleLarge),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Clinical Features', style: Theme.of(context).textTheme.titleLarge),
+                          TextButton.icon(
+                            onPressed: () async {
+                              final baseUrl = await _apiService.getBaseUrl();
+                              final url = Uri.parse('$baseUrl/download_sample?dataset=breast_cancer');
+                              if (await canLaunchUrl(url)) {
+                                await launchUrl(url);
+                              }
+                            },
+                            icon: const Icon(Icons.download),
+                            label: const Text('Download Sample Data'),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 16),
                       Wrap(
                         spacing: 16,
                         runSpacing: 16,
-                        children: List.generate(12, (index) {
+                        children: List.generate(_controllers.length, (index) {
+                          final label = _featureNames.isNotEmpty ? _featureNames[index] : 'Feature ${index + 1}';
                           return SizedBox(
-                            width: 100,
+                            width: 140,
                             child: TextField(
                               controller: _controllers[index],
                               decoration: InputDecoration(
-                                labelText: 'Feature ${index + 1}',
+                                labelText: label,
                                 border: const OutlineInputBorder(),
                               ),
                               keyboardType: TextInputType.number,

@@ -60,6 +60,15 @@ Our end-to-end pipeline consists of four main pillars:
 
 **Requirements:** Python 3.10+ (CPU-only is fine, uses ~1.2GB RAM).
 
+### ⚡ 1-Line Quickstart
+For academics and developers, instantly run the app locally by copying and pasting this line into your terminal:
+
+```bash
+git clone https://github.com/North-Abyss/Q-Ternary-VQC.git && cd Q-Ternary-VQC && pip install -r requirements.txt && ./run-app.sh
+```
+
+### ⚙️ Manual Setup (Backend / Quantum Engine)
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/North-Abyss/Q-Ternary-VQC.git

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q-Ternary VQC | Quantum Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="">
+
+    <!-- Navigation Rail -->
+    <nav class="nav-rail">
+        <button class="nav-fab" title="New Prediction">
+            <span class="material-icons-round">add</span>
+        </button>
+
+        <button class="nav-item active" onclick="switchTab('single')">
+            <div class="icon-container">
+                <span class="material-icons-round">person</span>
+            </div>
+            <span class="text-label">Single</span>
+        </button>
+
+        <button class="nav-item" onclick="switchTab('batch')">
+            <div class="icon-container">
+                <span class="material-icons-round">table_view</span>
+            </div>
+            <span class="text-label">Batch</span>
+        </button>
+        
+        <div style="flex:1"></div>
+        
+        <button class="nav-item" onclick="toggleDarkMode()">
+            <div class="icon-container">
+                <span class="material-icons-round" id="theme-icon">dark_mode</span>
+            </div>
+            <span class="text-label">Theme</span>
+        </button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div class="main-area">
+        
+        <!-- Top App Bar -->
+        <header class="top-app-bar">
+            <h1>Q-Ternary VQC</h1>
+            <div>
+                <button class="icon-btn" title="Settings">
+                    <span class="material-icons-round">settings</span>
+                </button>
+                <button class="icon-btn" title="Account">
+                    <span class="material-icons-round">account_circle</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <div class="content">
+            
+            <div style="margin-bottom: 32px;">
+                <h2 class="text-headline">Logarithmic Qudit Compression (2³ → 3²)</h2>
+                <p class="text-body text-muted">High-Dimensional Tabular Data Inference Engine</p>
+            </div>
+
+            <div class="dashboard-layout">
+                
+                <!-- Left Column -->
+                <div class="input-panel">
+                    
+                    <!-- Single Tab -->
+                    <div id="single-tab" class="tab-content active">
+                        <div class="md-card">
+                            <div class="card-title">
+                                <span class="material-icons-round">science</span>
+                                Clinical Features
+                            </div>
+                            <form id="prediction-form" class="input-grid">
+                                {% for feature in features %}
+                                <div class="md-text-field">
+                                    <label for="feat-{{ loop.index0 }}">{{ feature|replace('_', ' ')|title }}</label>
+                                    <input type="number" step="any" id="feat-{{ loop.index0 }}" name="feat-{{ loop.index0 }}" value="0.0" required>
+                                </div>
+                                {% endfor %}
+                                <div style="grid-column: 1 / -1;">
+                                    <button type="submit" class="md-btn-filled btn-full">
+                                        <span class="material-icons-round">bolt</span> Initialize State & Predict
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Batch Tab -->
+                    <div id="batch-tab" class="tab-content">
+                        <div class="md-card">
+                            <div class="card-title">
+                                <span class="material-icons-round">cloud_upload</span>
+                                Upload Dataset
+                            </div>
+                            <p class="text-body text-muted" style="margin-bottom: 24px;">Upload a CSV file matching the exact 12 MI-selected feature dimensions.</p>
+                            
+                            <label class="upload-zone" for="csv-file">
+                                <span class="material-icons-round">upload_file</span>
+                                <h3 class="text-title" id="file-name">Click to browse or drag CSV here</h3>
+                            </label>
+                            <input type="file" id="csv-file" accept=".csv">
+                            
+                            <button id="batch-submit" class="md-btn-filled btn-full">
+                                <span class="material-icons-round">play_arrow</span> Execute Qutrit VQC
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right Column -->
+                <div class="results-panel">
+                    
+                    <div id="loading" class="md-card filled hidden result-display">
+                        <div class="loader"></div>
+                        <h3 class="text-title">Executing Circuit...</h3>
+                        <p class="text-body text-muted">Simulating d=3 quantum Hilbert space.</p>
+                    </div>
+
+                    <!-- Single Result -->
+                    <div id="result-display" class="md-card filled hidden result-display">
+                        <div class="card-title" style="align-self: flex-start;">
+                            <span class="material-icons-round">memory</span>
+                            Quantum Inference
+                        </div>
+                        
+                        <div class="status-circle" id="pred-status" style="margin-top: 24px;">
+                            <span class="material-icons-round" style="font-size: 64px;">help_outline</span>
+                        </div>
+                        <h2 class="text-headline" id="pred-text" style="margin-bottom: 24px;">--</h2>
+                        
+                        <div style="width: 100%; text-align: left;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span class="text-label">Confidence (Class 1)</span>
+                                <span class="text-label" id="prob-val" style="font-weight: 700;">0%</span>
+                            </div>
+                            <div class="prob-bar-bg">
+                                <div class="prob-bar-fill" id="prob-fill"></div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 32px; padding: 16px; background-color: var(--md-sys-color-surface); border-radius: 12px; display: flex; gap: 12px; text-align: left; border: 1px solid var(--md-sys-color-outline-variant); width: 100%;">
+                            <span class="material-icons-round text-muted">info</span>
+                            <span class="text-body text-muted">Result decoded via standard non-demolition measurement logic.</span>
+                        </div>
+                    </div>
+
+                    <!-- Batch Result -->
+                    <div id="batch-result-display" class="md-card filled hidden">
+                        <div class="card-title">
+                            <span class="material-icons-round">analytics</span>
+                            Batch Analytics
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 16px; background-color: var(--md-sys-color-surface); border-radius: 12px; border: 1px solid var(--md-sys-color-outline-variant);">
+                            <span class="text-title text-muted">Total Records</span>
+                            <span class="text-display" id="batch-count" style="color: var(--md-sys-color-primary);">0</span>
+                        </div>
+                        <div style="width: 100%; height: 300px; position: relative;">
+                            <canvas id="batchChart"></canvas>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

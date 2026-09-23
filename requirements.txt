@@ -9,3 +9,4 @@ flask
 pandas
 xgboost
 psutil
+flask-cors

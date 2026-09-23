@@ -39,34 +39,34 @@ def main():
     
     print("===============================================")
     print("🚀 Starting QMLPlatform 🚀")
-    print(f"Dataset: {args.dataset}")
-    print(f"Target Features: {args.n_features}")
+    print(f"📊 Dataset: {args.dataset}")
+    print(f"🎯 Target Features: {args.n_features}")
     print("===============================================\n")
 
     # 1. Load Data
-    print("--- 1. Loading Data ---")
+    print("--- 📥 1. Loading Data ---")
     if args.dataset == "breast_cancer":
         bundle = load_wisconsin_breast_cancer()
     else:
-        bundle = load_ckd_dataset("data/kidney_disease.csv") # Assuming path exists
+        bundle = load_ckd_dataset("data/kidney_disease.csv")
     
-    print(f"Loaded {bundle.dataset_name}: {bundle.X_train.shape[0]} train, {bundle.X_test.shape[0]} test samples.")
+    print(f"✅ Loaded {bundle.dataset_name}: {bundle.X_train.shape[0]} train, {bundle.X_test.shape[0]} test samples.")
 
     # 2. Feature Selection
-    print("\n--- 2. Feature Selection (Mutual Information) ---")
+    print("\n--- 🔍 2. Feature Selection (Mutual Information) ---")
     selector = FeatureSelector(method='mutual_info', n_features=args.n_features)
     bundle_selected = selector.fit_transform(bundle)
-    print(f"Selected features: {bundle_selected.X_train.shape[1]}")
+    print(f"✅ Selected features: {bundle_selected.X_train.shape[1]}")
 
     # 3. Preprocessing (Impute, Scale, Binarize, Compress)
-    print("\n--- 3. Preprocessing & Q-Ternary Compression ---")
+    print("\n--- ⚛️ 3. Preprocessing & Q-Ternary Compression ---")
     preprocessor = Preprocessor()
     bundle_compressed = preprocessor.fit_transform(bundle_selected)
-    print(f"Original dimension: {bundle_selected.X_train.shape[1]} bits")
-    print(f"Compressed dimension: {bundle_compressed.X_train.shape[1]} trits")
+    print(f"📉 Original dimension: {bundle_selected.X_train.shape[1]} bits")
+    print(f"📉 Compressed dimension: {bundle_compressed.X_train.shape[1]} trits")
 
     # 4. Train Classical Baselines
-    print("\n--- 4. Training Classical Baselines ---")
+    print("\n--- 🖥️ 4. Training Classical Baselines ---")
     baselines = get_all_baselines()
     classical_results = {}
     classical_models_trained = {}
@@ -79,15 +79,15 @@ def main():
         metrics = calculate_metrics(bundle_selected.y_test, y_pred, y_prob)
         classical_results[model.name] = {"metrics": metrics, "y_prob": y_prob}
         classical_models_trained[model.name] = model
-        print(f"{model.name} Accuracy: {metrics['Accuracy']:.2%} | F1: {metrics['F1']:.2%} | Time: {time.time()-start_time:.2f}s")
+        print(f"✅ {model.name} Accuracy: {metrics['Accuracy']:.2%} | F1: {metrics['F1']:.2%} | Time: {time.time()-start_time:.2f}s")
 
     quantum_model_trained = None
     if not args.classical_only:
         # 5. Train Quantum Engine
-        print("\n--- 5. Training Quantum Engine (VQC) ---")
+        print("\n--- ⚛️ 5. Training Quantum Engine (VQC) ---")
         n_wires = bundle_compressed.X_train.shape[1]
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Using device: {device}")
+        print(f"⚙️ Using device: {device}")
         
         model = QutritClassifier(n_wires=n_wires, n_layers=args.n_layers).to(device)
         criterion = nn.BCELoss()
@@ -146,7 +146,7 @@ def main():
             epoch_iterator.set_postfix({"Loss": f"{avg_loss:.4f}", "RAM(GB)": f"{mem_gb:.2f}"})
                 
             if (epoch + 1) % 10 == 0 or epoch == 0:
-                print(f"Epoch {epoch+1}/{args.epochs} | Loss: {avg_loss:.4f} | Mem: {mem_gb:.2f} GB")
+                print(f"🔄 Epoch {epoch+1}/{args.epochs} | Loss: {avg_loss:.4f} | Mem: {mem_gb:.2f} GB")
                 
         # Evaluate Quantum
         model.eval()
@@ -155,11 +155,11 @@ def main():
             q_preds = (q_probs >= 0.5).astype(int)
             
         q_metrics = calculate_metrics(bundle_compressed.y_test, q_preds, q_probs)
-        print(f"\nQuantum Model Accuracy: {q_metrics['Accuracy']:.2%} | F1: {q_metrics['F1']:.2%}")
+        print(f"\n✅ Quantum Model Accuracy: {q_metrics['Accuracy']:.2%} | F1: {q_metrics['F1']:.2%}")
         quantum_model_trained = model
 
         # 6. Evaluation & Visualization
-        print("\n--- 6. Generating Visualizations ---")
+        print("\n--- 📈 6. Generating Visualizations ---")
         viz = Visualizer()
         viz.plot_training_loss(losses)
         viz.plot_compression_ratio(bundle_selected.X_train.shape[1], n_wires)
@@ -175,17 +175,17 @@ def main():
         c_preds = best_classical.predict(bundle_selected.X_test)
         viz.plot_confusion_matrix(bundle_selected.y_test, c_preds, best_classical.name)
         
-        print("Visualizations saved to outputs/ directory.")
+        print("🖼️ Visualizations saved to outputs/ directory.")
 
         # 7. XAI (Explainability)
-        print("\n--- 7. Generating SHAP Explanations ---")
+        print("\n--- 🧠 7. Generating SHAP Explanations ---")
         # Explain classical SVM as it's faster
         xai = XAIEngine(baselines[0], bundle_selected.X_train, bundle_selected.feature_names)
         xai.explain_dataset(bundle_selected.X_test, n_samples=30)
-        print("SHAP plots saved to outputs/ directory.")
+        print("🖼️ SHAP plots saved to outputs/ directory.")
 
         # 8. Save Trained Models
-        print("\n--- 8. Saving Trained Models to Disk ---")
+        print("\n--- 💾 8. Saving Trained Models to Disk ---")
         os.makedirs("models", exist_ok=True)
         # Save Quantum Model Weights
         torch.save(quantum_model_trained.state_dict(), "models/qutrit_vqc_weights.pt")
@@ -197,10 +197,16 @@ def main():
             safe_name = c_model_name.replace(" ", "_").lower()
             joblib.dump(c_model_obj.model, f"models/{safe_name}_baseline.pkl")
             print(f"✅ Saved Classical {c_model_name} to models/{safe_name}_baseline.pkl")
+            
+        # Save Preprocessor and Feature Selector
+        joblib.dump(preprocessor, "models/preprocessor.pkl")
+        joblib.dump(selector, "models/feature_selector.pkl")
+        joblib.dump(bundle_selected.feature_names, "models/feature_names.pkl")
+        print("✅ Saved Preprocessor and Feature Selector to models/")
 
     # 9. API Startup
     if args.start_api:
-        print("\n--- 9. Starting Flask API ---")
+        print("\n--- 🌐 9. Starting Flask API ---")
         app.preprocessor = preprocessor
         app.feature_selector = selector
         app.quantum_model = quantum_model_trained
@@ -209,7 +215,7 @@ def main():
         app.app.run(host='0.0.0.0', port=5000, debug=False)
         
     print("\n===============================================")
-    print("Pipeline Execution Complete.")
+    print("🎉 Pipeline Execution Complete.")
     print("===============================================")
 
 if __name__ == "__main__":

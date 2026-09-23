@@ -51,6 +51,13 @@ class Preprocessor:
             dataset_name=bundle.dataset_name + " (Compressed)"
         )
 
+    def transform(self, X: np.ndarray) -> np.ndarray:
+        """Applies inference-time transformations: impute, scale, binarize, and compress."""
+        X_imp = self.imputer.transform(X)
+        X_scl = self.scaler.transform(X_imp)
+        X_bin = (X_scl > self.thresholds).astype(int)
+        return self.batch_compress(X_bin)
+
     @staticmethod
     def compress_3bits_to_2trits(binary_vector: np.ndarray) -> np.ndarray:
         """

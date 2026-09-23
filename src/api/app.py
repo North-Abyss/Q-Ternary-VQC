@@ -3,91 +3,273 @@
 Designed and Engineered by: Yuvanesh KS (Alias: North-Abyss)
 GitHub: https://github.com/North-Abyss
 License: CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike)
-
-Core Innovation: Q-Ternary (2³ → 3²) Medical Data Compression & VQC Entanglement
 =============================================================================
 """
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask_cors import CORS
 import torch
 import numpy as np
 import traceback
+import joblib
+import pandas as pd
+import os
+import sys
+import threading
+import subprocess
 
-app = Flask(__name__)
+# Add parent dir to path so we can import our modules
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from quantum.qutrit_model import QutritClassifier
+
+app = Flask(__name__, template_folder='templates', static_folder='static')
+CORS(app)
+
+HISTORY_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models', 'history.json')
+
+def load_history():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            import json
+            with open(HISTORY_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+def save_history(history):
+    os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
+    import json
+    with open(HISTORY_FILE, 'w') as f:
+        json.dump(history, f, indent=2)
 
 # Global variables to hold loaded pipeline
 preprocessor = None
 feature_selector = None
 quantum_model = None
-classical_baselines = {}
 feature_names = []
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    return jsonify({
-        "status": "online",
-        "quantum_model_loaded": quantum_model is not None,
-        "classical_models_loaded": len(classical_baselines) > 0
-    })
+# Background Training State
+training_state = {
+    "is_running": False,
+    "logs": []
+}
+training_lock = threading.Lock()
+
+def load_pipeline():
+    global preprocessor, feature_selector, quantum_model, feature_names
+    try:
+        if not os.path.exists('models/preprocessor.pkl'):
+            print("⚠️ Models directory empty. Please train the model first.")
+            return
+
+        preprocessor = joblib.load('models/preprocessor.pkl')
+        feature_selector = joblib.load('models/feature_selector.pkl')
+        feature_names = joblib.load('models/feature_names.pkl')
+        
+        n_features = len(feature_names)
+        n_wires = (n_features // 3) * 2
+        
+        device = torch.device("cpu")
+        state_dict = torch.load('models/qutrit_vqc_weights.pt', map_location=device, weights_only=True)
+        # Determine n_layers from the saved shape (n_layers, n_wires, 3)
+        n_layers = state_dict['q_weights'].shape[0]
+        
+        model = QutritClassifier(n_wires=n_wires, n_layers=n_layers).to(device)
+        model.load_state_dict(state_dict)
+        model.eval()
+        quantum_model = model
+        print(f"✅ Pipeline successfully loaded from models/ directory. (VQC Layers: {n_layers})")
+    except Exception as e:
+        print(f"⚠️ Failed to load models: {e}")
+
+load_pipeline()
+
+@app.route('/', methods=['GET'])
+def index():
+    return render_template('index.html', features=feature_names)
+
+@app.route('/upload_dataset', methods=['POST'])
+def upload_dataset():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+        
+    os.makedirs('data', exist_ok=True)
+    file_path = os.path.join('data', file.filename)
+    file.save(file_path)
+    return jsonify({"status": "success", "message": f"Saved as {file_path}", "filename": file.filename})
+
+def _run_training_subprocess(epochs, layers, dataset):
+    global training_state
+    
+    with training_lock:
+        training_state["is_running"] = True
+        training_state["logs"] = [f"Starting training job for dataset '{dataset}'..."]
+        
+    cmd = [sys.executable, "src/main.py", "--epochs", str(epochs), "--n-layers", str(layers)]
+    # We append dataset arg if it's one of the recognized ones, or default to breast_cancer
+    if dataset == "ckd":
+        cmd.extend(["--dataset", "ckd"])
+    
+    # __file__ is src/api/app.py. dirname x3 gives the repo root (QT)
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=repo_root)
+    
+    for line in iter(process.stdout.readline, ''):
+        with training_lock:
+            training_state["logs"].append(line.strip())
+            
+    process.stdout.close()
+    process.wait()
+    
+    with training_lock:
+        training_state["logs"].append(f"Training finished with code {process.returncode}")
+        training_state["is_running"] = False
+        
+        # Save to history
+        import datetime
+        history = load_history()
+        history.append({
+            "timestamp": datetime.datetime.now().isoformat(),
+            "epochs": epochs,
+            "layers": layers,
+            "dataset": dataset,
+            "success": process.returncode == 0
+        })
+        save_history(history)
+        
+    # Reload pipeline after training
+    load_pipeline()
+
+@app.route('/train', methods=['POST'])
+def train():
+    global training_state
+    
+    with training_lock:
+        if training_state["is_running"]:
+            return jsonify({"error": "A training job is already running."}), 400
+            
+    config = request.json or {}
+    epochs = int(config.get("epochs", 50))
+    layers = int(config.get("layers", 3))
+    dataset = config.get("dataset", "breast_cancer")
+    
+    thread = threading.Thread(target=_run_training_subprocess, args=(epochs, layers, dataset))
+    thread.daemon = True
+    thread.start()
+    
+    return jsonify({"status": "success", "message": "Training job started in background."})
+
+@app.route('/train_status', methods=['GET'])
+def train_status():
+    with training_lock:
+        return jsonify({
+            "is_running": training_state["is_running"],
+            "logs": training_state["logs"]
+        })
+
+@app.route('/download_model', methods=['GET'])
+def download_model():
+    filename = request.args.get('filename')
+    models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models')
+    if not filename or not os.path.exists(os.path.join(models_dir, filename)):
+        return jsonify({"error": "File not found."}), 404
+        
+    return send_from_directory(models_dir, filename, as_attachment=True)
+
+@app.route('/history', methods=['GET'])
+def get_history():
+    return jsonify({"status": "success", "history": load_history()})
+
+@app.route('/cleanup', methods=['POST'])
+def cleanup():
+    import glob
+    models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models')
+    try:
+        files = glob.glob(os.path.join(models_dir, '*'))
+        for f in files:
+            os.remove(f)
+        
+        # Also stop any running process? (Not implementing process kill here for safety, just files)
+        global preprocessor, feature_selector, quantum_model
+        preprocessor = None
+        feature_selector = None
+        quantum_model = None
+        
+        return jsonify({"status": "success", "message": "All models and history cleared."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/download_sample', methods=['GET'])
+def download_sample():
+    dataset_name = request.args.get('dataset', 'breast_cancer')
+    import io
+    from flask import send_file
+    
+    # We will generate a small sample CSV using the backend's data loader
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from data.loader import load_wisconsin_breast_cancer
+    
+    # Only supporting breast_cancer for the demo payload
+    bundle = load_wisconsin_breast_cancer()
+    df = pd.DataFrame(bundle.X_train[:50], columns=bundle.feature_names)
+    df['target'] = bundle.y_train[:50]
+    
+    csv_buffer = io.BytesIO()
+    df.to_csv(csv_buffer, index=False)
+    csv_buffer.seek(0)
+    
+    return send_file(csv_buffer, download_name=f'sample_{dataset_name}.csv', as_attachment=True, mimetype='text/csv')
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    """
-    Expects JSON: {"features": [list of feature values matching the required dataset shape]}
-    """
     if quantum_model is None:
-        return jsonify({"error": "Model not loaded"}), 503
+        return jsonify({"error": "Quantum model not loaded properly."}), 503
         
     try:
-        data = request.json
-        features = data.get('features')
-        if not features:
-            return jsonify({"error": "No features provided"}), 400
-            
-        # 1. Convert to numpy array
-        X_raw = np.array([features])
-        
-        # 2. Impute and Scale (Using the preprocessor fitted on training data)
-        # Note: Preprocessor expects DataBundle for fit_transform, 
-        # but for single prediction we should refactor it to handle single inputs.
-        # For this standalone API demo, we'll do a simplified inference pass.
-        
-        # 3. Feature Selection
-        if feature_selector:
-            X_sel = feature_selector.selector.transform(X_raw)
+        if 'file' in request.files:
+            file = request.files['file']
+            if file.filename == '':
+                return jsonify({"error": "No file selected"}), 400
+                
+            df = pd.read_csv(file)
+            missing_cols = [col for col in feature_names if col not in df.columns]
+            if missing_cols:
+                return jsonify({"error": f"Missing columns in CSV: {missing_cols}"}), 400
+                
+            X_raw = df[feature_names].values
+        elif request.is_json:
+            data = request.json
+            features = data.get('features')
+            if not features or len(features) != len(feature_names):
+                return jsonify({"error": f"Expected {len(feature_names)} features."}), 400
+            X_raw = np.array([features])
         else:
-            X_sel = X_raw
-            
-        # 4. Binarize and Compress
-        X_bin = (X_sel > preprocessor.thresholds).astype(int)
-        X_comp = preprocessor.batch_compress(X_bin)
+            return jsonify({"error": "Invalid request format."}), 400
+
+        # Process through the pipeline (impute, scale, binarize, compress)
+        X_comp = preprocessor.transform(X_raw)
         
-        # 5. Quantum Prediction
         x_tensor = torch.tensor(X_comp, dtype=torch.float32)
         with torch.no_grad():
-            prob = quantum_model(x_tensor).item()
+            probs = quantum_model(x_tensor).numpy()
             
-        prediction = 1 if prob >= 0.5 else 0
+        preds = (probs >= 0.5).astype(int)
         
-        # 6. Classical Predictions for comparison
-        classical_results = {}
-        for name, model in classical_baselines.items():
-            if hasattr(model, 'predict_proba'):
-                c_prob = model.predict_proba(X_sel)[0, 1]
-                classical_results[name] = {
-                    "probability": float(c_prob),
-                    "prediction": int(c_prob >= 0.5)
-                }
-        
-        return jsonify({
-            "quantum_prediction": int(prediction),
-            "quantum_probability": float(prob),
-            "classical_comparisons": classical_results
-        })
+        results = []
+        for i in range(len(preds)):
+            results.append({
+                "id": i,
+                "quantum_prediction": int(preds[i]),
+                "quantum_probability": float(probs[i])
+            })
+            
+        return jsonify({"status": "success", "results": results})
         
     except Exception as e:
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 if __name__ == '__main__':
-    # When running directly, we start the API
-    # In practice, main.py would train the model and then start the API or pass the models
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)

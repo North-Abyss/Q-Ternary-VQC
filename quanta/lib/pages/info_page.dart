@@ -44,12 +44,12 @@ class InfoPage extends StatelessWidget {
                 
                 _buildInfoCard(
                   context,
-                  title: 'How to use this Application',
-                  icon: Icons.help_outline,
-                  content: '1. Data Setup: Upload a CSV dataset (e.g., Breast Cancer or CKD).\n'
-                      '2. Training: Select Hyperparameters (Epochs, VQC Layers) and start the training job. Watch live cluster logs.\n'
-                      '3. Inference: Use the trained PyTorch state dictionaries to make rapid batch predictions.\n'
-                      '4. Dashboard: Download generated artifacts (.pt, .pkl).',
+                  title: 'Clinical Diagnostic Workflow',
+                  icon: Icons.medical_services_outlined,
+                  content: '1. Patient Data Intake (Pipeline): Securely upload the patient\'s EHR or Genomic biomarker profile (CSV).\n'
+                      '2. Diagnostic Training: The quantum model establishes a patient-specific baseline to identify pathological patterns.\n'
+                      '3. Clinical Assessment (Inference): Run the patient\'s real-time metrics through the trained quantum model to generate a risk triage report.\n'
+                      '4. Reporting (Dashboard): Review historical patient assessments and securely export diagnostic artifacts for compliance.',
                 ),
               ],
             ),

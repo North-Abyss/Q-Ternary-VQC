@@ -25,9 +25,9 @@ from evaluation.visualizer import Visualizer
 from explainability.xai_engine import XAIEngine
 from api import app
 
-def main():
+def _main_impl():
     parser = argparse.ArgumentParser(description="Hybrid Quantum ML Engine for MedTech")
-    parser.add_argument("--dataset", type=str, default="breast_cancer", choices=["breast_cancer", "ckd"])
+    parser.add_argument("--dataset", type=str, default="breast_cancer", choices=["breast_cancer", "ckd", "heart_disease", "parkinsons"])
     parser.add_argument("--n-features", type=int, default=12, help="Number of features after PCA/MI (must be multiple of 3)")
     parser.add_argument("--n-layers", type=int, default=3, help="Number of layers in Quantum Neural Network")
     parser.add_argument("--epochs", type=int, default=50, help="Training epochs for QNN")
@@ -47,8 +47,14 @@ def main():
     print("--- 📥 1. Loading Data ---")
     if args.dataset == "breast_cancer":
         bundle = load_wisconsin_breast_cancer()
-    else:
+    elif args.dataset == "ckd":
         bundle = load_ckd_dataset("data/kidney_disease.csv")
+    elif args.dataset == "heart_disease":
+        from data.loader import load_heart_disease
+        bundle = load_heart_disease()
+    elif args.dataset == "parkinsons":
+        from data.loader import load_parkinsons
+        bundle = load_parkinsons()
     
     print(f"✅ Loaded {bundle.dataset_name}: {bundle.X_train.shape[0]} train, {bundle.X_test.shape[0]} test samples.")
 
@@ -86,6 +92,12 @@ def main():
         # 5. Train Quantum Engine
         print("\n--- ⚛️ 5. Training Quantum Engine (VQC) ---")
         n_wires = bundle_compressed.X_train.shape[1]
+        
+        # Pre-computation validation for NaNs
+        import numpy as np
+        if np.isnan(bundle_compressed.X_train).any() or np.isnan(bundle_compressed.y_train).any():
+            raise ValueError("Input dataset contains NaN values, which will crash the quantum simulator.")
+            
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"⚙️ Using device: {device}")
         
@@ -234,6 +246,21 @@ def main():
     print("\n===============================================")
     print("🎉 Pipeline Execution Complete.")
     print("===============================================")
+
+def main():
+    try:
+        _main_impl()
+    except Exception as e:
+        import json
+        import traceback
+        import sys
+        error_info = {
+            "error_type": type(e).__name__,
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }
+        print(f"\n[PIPELINE_ERROR] {json.dumps(error_info)}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

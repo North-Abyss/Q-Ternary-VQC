@@ -100,10 +100,35 @@ def upload_dataset():
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
         
+    if not file.filename.endswith('.csv'):
+        return jsonify({"error": "Invalid file format. Only .csv files are supported."}), 400
+        
     os.makedirs('data', exist_ok=True)
     file_path = os.path.join('data', file.filename)
     file.save(file_path)
-    return jsonify({"status": "success", "message": f"Saved as {file_path}", "filename": file.filename})
+    
+    try:
+        # Validate and generate preview using Pandas
+        df = pd.read_csv(file_path)
+        row_count = len(df)
+        columns = df.columns.tolist()
+        
+        preview = {
+            "rows": row_count,
+            "features": len(columns),
+            "columns": columns[:5] + ["..."] if len(columns) > 5 else columns
+        }
+        
+        return jsonify({
+            "status": "success", 
+            "message": f"Dataset validated successfully. Found {row_count} rows.", 
+            "filename": file.filename,
+            "preview": preview
+        })
+    except Exception as e:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        return jsonify({"error": f"Failed to parse CSV: {str(e)}"}), 400
 
 def _run_training_subprocess(epochs, layers, dataset):
     global training_state
@@ -113,23 +138,34 @@ def _run_training_subprocess(epochs, layers, dataset):
         training_state["logs"] = [f"Starting training job for dataset '{dataset}'..."]
         
     cmd = [sys.executable, "src/main.py", "--epochs", str(epochs), "--n-layers", str(layers)]
-    # We append dataset arg if it's one of the recognized ones, or default to breast_cancer
-    if dataset == "ckd":
-        cmd.extend(["--dataset", "ckd"])
+    if dataset in ["ckd", "heart_disease", "parkinsons"]:
+        cmd.extend(["--dataset", dataset])
     
-    # __file__ is src/api/app.py. dirname x3 gives the repo root (QT)
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=repo_root)
     
+    error_json = None
     for line in iter(process.stdout.readline, ''):
         with training_lock:
-            training_state["logs"].append(line.strip())
+            if "[PIPELINE_ERROR]" in line:
+                import json
+                try:
+                    error_json = json.loads(line.split("[PIPELINE_ERROR]")[1].strip())
+                    training_state["logs"].append(f"🚨 PIPELINE CRASHED: {error_json.get('message', 'Unknown Error')}")
+                except:
+                    training_state["logs"].append(line.strip())
+            else:
+                training_state["logs"].append(line.strip())
             
     process.stdout.close()
     process.wait()
     
     with training_lock:
-        training_state["logs"].append(f"Training finished with code {process.returncode}")
+        if process.returncode == 0:
+            training_state["logs"].append("Pipeline Execution Complete.")
+        elif not error_json:
+            training_state["logs"].append(f"Training finished with code {process.returncode}")
+            
         training_state["is_running"] = False
         
         # Extract F1 score from logs
@@ -144,6 +180,9 @@ def _run_training_subprocess(epochs, layers, dataset):
         # Save to history
         import datetime
         history = load_history()
+        
+        status_msg = "Success" if process.returncode == 0 else (f"Failed: {error_json.get('error_type')}" if error_json else "Failed")
+        
         history.append({
             "timestamp": datetime.datetime.now().isoformat(),
             "epochs": epochs,
@@ -151,7 +190,8 @@ def _run_training_subprocess(epochs, layers, dataset):
             "dataset": dataset,
             "f1_score": f1_score,
             "logs": training_state["logs"].copy(),
-            "success": process.returncode == 0
+            "success": process.returncode == 0,
+            "status": status_msg
         })
         save_history(history)
         
@@ -232,10 +272,15 @@ def download_sample():
     
     # We will generate a small sample CSV using the backend's data loader
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from data.loader import load_wisconsin_breast_cancer
+    from data.loader import load_wisconsin_breast_cancer, load_heart_disease, load_parkinsons
     
-    # Only supporting breast_cancer for the demo payload
-    bundle = load_wisconsin_breast_cancer()
+    if dataset_name == 'heart_disease':
+        bundle = load_heart_disease()
+    elif dataset_name == 'parkinsons':
+        bundle = load_parkinsons()
+    else:
+        bundle = load_wisconsin_breast_cancer()
+        
     df = pd.DataFrame(bundle.X_train[:50], columns=bundle.feature_names)
     df['target'] = bundle.y_train[:50]
     
@@ -282,10 +327,26 @@ def predict():
         
         results = []
         for i in range(len(preds)):
+            prob = float(probs[i])
+            pred = int(preds[i])
+            
+            # Clinical Stage Mapping
+            if prob < 0.3:
+                stage = "No Disease Detected"
+            elif prob <= 0.6:
+                stage = "Early Stage Warning (Action Required)"
+            else:
+                stage = "Advanced Stage / High Risk"
+                
+            # Confidence Score: Distance from the 0.5 decision boundary scaled to 0-100%
+            confidence = abs(prob - 0.5) * 200.0
+            
             results.append({
                 "id": i,
-                "quantum_prediction": int(preds[i]),
-                "quantum_probability": float(probs[i])
+                "quantum_prediction": pred,
+                "quantum_probability": prob,
+                "clinical_stage": stage,
+                "confidence_score_percent": round(confidence, 2)
             })
             
         return jsonify({"status": "success", "results": results})

@@ -60,6 +60,21 @@ def batch_compress(binary_matrix):
 # (which means the original binary dataset had up to 6 binary features).
 N_WIRES = 4
 
+# CSUM (Controlled-Sum) 2-Qutrit Entangling Gate Matrix (9x9)
+CSUM_MATRIX = np.array([
+    [1,0,0, 0,0,0, 0,0,0],
+    [0,1,0, 0,0,0, 0,0,0],
+    [0,0,1, 0,0,0, 0,0,0],
+    
+    [0,0,0, 0,0,1, 0,0,0],
+    [0,0,0, 1,0,0, 0,0,0],
+    [0,0,0, 0,1,0, 0,0,0],
+    
+    [0,0,0, 0,0,0, 0,1,0],
+    [0,0,0, 0,0,0, 0,0,1],
+    [0,0,0, 0,0,0, 1,0,0]
+], dtype=np.complex128)
+
 # Initialize the PennyLane device configured for Qutrit operations
 dev = qml.device("default.qutrit", wires=N_WIRES)
 
@@ -75,25 +90,26 @@ def qutrit_circuit(inputs, weights):
     Returns:
         tensor: The expectation values of a Qutrit observable (analogous to Pauli-Z)
     """
-    # Phase 1: State Embedding 
-    # Embed the classical trits into the qutrit state using rotations in different subspaces
-    for wire in range(N_WIRES):
-        # We embed the ternary input {0, 1, 2} as rotation angles
-        angle = inputs[wire] * (2.0 * np.pi / 3.0)
-        qml.TRZ(angle, wires=wire, subspace=[0, 1])
-        qml.TRZ(angle, wires=wire, subspace=[1, 2])
-        
-    # Phase 2: Variational Layers
+    # Data Re-uploading & Variational Layers
     n_layers = weights.shape[0]
     for layer in range(n_layers):
-        # Trainable rotations (SU(3) components) for each wire
+        # Phase 1: State Embedding (Data Re-uploading per layer)
+        for wire in range(N_WIRES):
+            angle = inputs[wire] * (2.0 * np.pi / 3.0)
+            qml.TRZ(angle, wires=wire, subspace=[0, 1])
+            qml.TRZ(angle, wires=wire, subspace=[1, 2])
+            
+        # Phase 2: Trainable rotations (SU(3) components)
         for wire in range(N_WIRES):
             qml.TRX(weights[layer, wire, 0], wires=wire, subspace=[0, 1])
             qml.TRY(weights[layer, wire, 1], wires=wire, subspace=[1, 2])
             qml.TRZ(weights[layer, wire, 2], wires=wire, subspace=[0, 2])
             
-        # Optional: In a highly advanced setup, we would add multi-qutrit entangling gates here 
-        # (like generalized CNOT for qutrits). We stick to SU(3) subspace rotations for this baseline.
+        # Phase 3: Entangling Ring (CSUM) - The "moat" to beat XGBoost
+        if N_WIRES > 1:
+            for wire in range(N_WIRES):
+                target = (wire + 1) % N_WIRES
+                qml.QutritUnitary(CSUM_MATRIX, wires=[wire, target])
         
     # Phase 3: Measurement
     # Expected value of a Gell-Mann observable (e.g., THermitian)
@@ -119,15 +135,26 @@ class QutritClassifier(nn.Module):
         weight_shape = (n_layers, n_wires, 3)
         self.q_weights = nn.Parameter(0.1 * torch.randn(weight_shape))
         
+        # Hybrid Post-Processing classical layer
+        # Maps the quantum expectation value to an optimal decision boundary
+        self.post_process = nn.Sequential(
+            nn.Linear(1, 4),
+            nn.ReLU(),
+            nn.Linear(4, 1)
+        )
+        
     def forward(self, x):
         # Iterate over the batch and compute quantum circuit outputs
         batch_size = x.shape[0]
-        outputs = torch.zeros(batch_size, device=x.device)
+        q_outputs = torch.zeros(batch_size, 1, device=x.device)
         for i in range(batch_size):
-            outputs[i] = qutrit_circuit(x[i], self.q_weights)
+            q_outputs[i, 0] = qutrit_circuit(x[i], self.q_weights)
             
-        # Sigmoid to map output expectation [-1, 1] to [0, 1] probability
-        return torch.sigmoid(outputs)
+        # Pass through classical post-processing network
+        logits = self.post_process(q_outputs)
+        
+        # Sigmoid to map output expectation to [0, 1] probability
+        return torch.sigmoid(logits).squeeze()
 
 
 def train_hybrid_model():

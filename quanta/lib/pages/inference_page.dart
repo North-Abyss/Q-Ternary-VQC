@@ -1,175 +1,106 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../api_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/diagnostic_state_provider.dart';
+import '../widgets/glassmorphic_clinical_panel.dart';
 
-class InferencePage extends StatefulWidget {
+class InferencePage extends StatelessWidget {
   const InferencePage({super.key});
 
   @override
-  State<InferencePage> createState() => _InferencePageState();
-}
-
-class _InferencePageState extends State<InferencePage> {
-  final ApiService _apiService = ApiService();
-  bool _loading = false;
-  Map<String, dynamic>? _result;
-  
-  List<String> _featureNames = [];
-  List<TextEditingController> _controllers = List.generate(12, (index) => TextEditingController(text: '0.0'));
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFeatureNames();
-  }
-
-  Future<void> _loadFeatureNames() async {
-    try {
-      final names = await _apiService.getFeatureNames();
-      if (mounted) {
-        setState(() {
-          _featureNames = names;
-          _controllers = List.generate(names.length, (index) => TextEditingController(text: '0.0'));
-        });
-      }
-    } catch (e) {
-      debugPrint('Could not load feature names: $e');
-    }
-  }
-
-  Future<void> _runInference() async {
-    setState(() {
-      _loading = true;
-      _result = null;
-    });
-
-    try {
-      final features = _controllers.map((c) => double.tryParse(c.text) ?? 0.0).toList();
-      final res = await _apiService.predictSingle(features);
-      setState(() {
-        _result = res['results'][0];
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final stateProvider = Provider.of<DiagnosticStateProvider>(context);
+    final result = stateProvider.latestResult;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Quantum Inference')),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 1,
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
+      appBar: AppBar(
+        title: const Text('Quantum Inference Report'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.print),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Exporting report...')),
+              );
+            },
+            tooltip: 'Print Report',
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: result == null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.assignment_late, size: 80, color: Theme.of(context).colorScheme.primary.withOpacity(0.2)),
+                  const SizedBox(height: 24),
+                  const Text('No Diagnostic Result Available', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  const Text('Please return to the Dashboard and run a patient pipeline first.', style: TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 32),
+                  FilledButton.icon(
+                    onPressed: () => Navigator.of(context).pushReplacementNamed('/dashboard'),
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Return to Dashboard'),
+                  )
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      GlassmorphicClinicalPanel(
+                        triage: result.triage,
+                        confidenceScore: result.confidenceScore,
+                        qutritProbabilities: result.qutritProbabilities,
+                        diseaseDomain: result.domain.name.toUpperCase(),
+                        clinicalInterpretation: result.clinicalNarrative,
+                        onExportPdfPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Exporting PDF functionality coming soon!')),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 48),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('Clinical Features', style: Theme.of(context).textTheme.titleLarge),
-                          TextButton.icon(
-                            onPressed: () async {
-                              final baseUrl = await _apiService.getBaseUrl();
-                              final url = Uri.parse('$baseUrl/download_sample?dataset=breast_cancer');
-                              if (await canLaunchUrl(url)) {
-                                await launchUrl(url);
-                              }
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              stateProvider.clearSession();
+                              Navigator.of(context).pushReplacementNamed('/dashboard');
                             },
-                            icon: const Icon(Icons.download),
-                            label: const Text('Download Sample Data'),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Start New Patient Scan'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          FilledButton.icon(
+                            onPressed: () {
+                               // Simulating saving to EHR
+                               ScaffoldMessenger.of(context).showSnackBar(
+                                 const SnackBar(content: Text('Saved to Patient EHR System.')),
+                               );
+                            },
+                            icon: const Icon(Icons.save),
+                            label: const Text('Commit to EHR'),
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                            ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 16,
-                        runSpacing: 16,
-                        children: List.generate(_controllers.length, (index) {
-                          final label = _featureNames.isNotEmpty ? _featureNames[index] : 'Feature ${index + 1}';
-                          return SizedBox(
-                            width: 140,
-                            child: TextField(
-                              controller: _controllers[index],
-                              decoration: InputDecoration(
-                                labelText: label,
-                                border: const OutlineInputBorder(),
-                              ),
-                              keyboardType: TextInputType.number,
-                            ),
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 24),
-                      FilledButton.icon(
-                        onPressed: _loading ? null : _runInference,
-                        icon: _loading ? const SizedBox(width:16, height:16, child: CircularProgressIndicator(strokeWidth:2)) : const Icon(Icons.bolt),
-                        label: const Text('Predict'),
-                        style: FilledButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-                      ),
+                      )
                     ],
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 24),
-            Expanded(
-              flex: 1,
-              child: _result == null 
-                  ? const Card(child: Center(child: Text('Run prediction to see results.')))
-                  : Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('Prediction Result', style: Theme.of(context).textTheme.headlineSmall),
-                            const SizedBox(height: 32),
-                            Icon(
-                              _result!['quantum_prediction'] == 1 ? Icons.warning : Icons.check_circle,
-                              size: 80,
-                              color: _result!['quantum_prediction'] == 1 ? Colors.red : Colors.green,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _result!['quantum_prediction'] == 1 ? 'MALIGNANT' : 'BENIGN',
-                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                color: _result!['quantum_prediction'] == 1 ? Colors.red : Colors.green,
-                                fontWeight: FontWeight.bold
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            LinearProgressIndicator(
-                              value: _result!['quantum_probability'],
-                              minHeight: 12,
-                              color: _result!['quantum_prediction'] == 1 ? Colors.red : Colors.green,
-                            ),
-                            const SizedBox(height: 8),
-                            Text('Confidence: ${(_result!['quantum_probability'] * 100).toStringAsFixed(2)}%'),
-                          ],
-                        ),
-                      ),
-                    ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

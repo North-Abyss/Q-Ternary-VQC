@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/theme_provider.dart';
+import 'providers/diagnostic_state_provider.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/pipeline_page.dart';
 import 'pages/inference_page.dart';
@@ -13,6 +14,7 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => DiagnosticStateProvider()),
       ],
       child: const QuantaApp(),
     ),
@@ -47,14 +49,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
-
-  final List<Widget> _pages = const [
-    DashboardPage(),
-    PipelinePage(),
-    InferencePage(),
-    InfoPage(),
-    SettingsPage(),
-  ];
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   final List<NavigationDestination> _navDestinations = const [
     NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
@@ -82,7 +77,48 @@ class _AppShellState extends State<AppShell> {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1200),
-          child: _pages[_selectedIndex],
+          child: Navigator(
+            key: _navigatorKey,
+            initialRoute: '/dashboard',
+            onGenerateRoute: (RouteSettings settings) {
+              WidgetBuilder builder;
+              switch (settings.name) {
+                case '/dashboard':
+                  builder = (BuildContext _) => const DashboardPage();
+                  break;
+                case '/pipeline':
+                  builder = (BuildContext _) => const PipelinePage();
+                  break;
+                case '/inference':
+                  builder = (BuildContext _) => const InferencePage();
+                  break;
+                case '/info':
+                  builder = (BuildContext _) => const InfoPage();
+                  break;
+                case '/settings':
+                  builder = (BuildContext _) => const SettingsPage();
+                  break;
+                default:
+                  builder = (BuildContext _) => const DashboardPage();
+              }
+              return PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.0, 0.03),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                transitionDuration: const Duration(milliseconds: 300),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -118,6 +154,10 @@ class _AppShellState extends State<AppShell> {
           setState(() {
             _selectedIndex = index;
           });
+          final routes = ['/dashboard', '/pipeline', '/inference', '/info', '/settings'];
+          if (index < routes.length) {
+            _navigatorKey.currentState?.pushReplacementNamed(routes[index]);
+          }
         },
         destinations: _railDestinations,
       );
@@ -130,6 +170,10 @@ class _AppShellState extends State<AppShell> {
           setState(() {
             _selectedIndex = index;
           });
+          final routes = ['/dashboard', '/pipeline', '/inference', '/info', '/settings'];
+          if (index < routes.length) {
+            _navigatorKey.currentState?.pushReplacementNamed(routes[index]);
+          }
         },
         destinations: _navDestinations,
       );

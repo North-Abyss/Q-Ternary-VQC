@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from dataclasses import dataclass
 from typing import Tuple, List, Optional
-from sklearn.datasets import load_breast_cancer
+from sklearn.datasets import load_breast_cancer, make_classification
 from sklearn.model_selection import train_test_split
 
 @dataclass
@@ -72,3 +72,17 @@ def load_ckd_dataset(file_path: str, test_size: float = 0.2, random_state: int =
         feature_names=feature_names,
         dataset_name="Chronic Kidney Disease"
     )
+
+def load_heart_disease(test_size: float = 0.2, random_state: int = 42) -> DataBundle:
+    """Mock loader for Cardiovascular Disease (EHR Data)"""
+    X, y = make_classification(n_samples=300, n_features=14, n_informative=5, random_state=random_state)
+    feature_names = [f"clinical_marker_{i}" for i in range(14)]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+    return DataBundle(X_train, X_test, y_train, y_test, feature_names, "Cardiovascular Disease (EHR)")
+
+def load_parkinsons(test_size: float = 0.2, random_state: int = 42) -> DataBundle:
+    """Mock loader for Neurological Conditions (Genomics/Biomedical Data)"""
+    X, y = make_classification(n_samples=200, n_features=22, n_informative=8, random_state=random_state)
+    feature_names = [f"gene_expr_{i}" for i in range(22)]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+    return DataBundle(X_train, X_test, y_train, y_test, feature_names, "Parkinson's Disease (Genomics)")

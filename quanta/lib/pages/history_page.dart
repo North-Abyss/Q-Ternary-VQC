@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 // ignore: avoid_web_libraries_in_flutter, deprecated_member_use
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
+import 'dart:js_interop';
 import 'dart:convert';
 import '../api_service.dart';
 import '../widgets/app_notification.dart';
@@ -49,12 +50,16 @@ class _HistoryPageState extends State<HistoryPage> {
   void _downloadLogs(String timestamp, List<dynamic> logs) {
     final text = logs.join('\n');
     final bytes = utf8.encode(text);
-    final blob = html.Blob([bytes]);
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    html.AnchorElement(href: url)
-      ..setAttribute('download', 'training_logs_$timestamp.txt')
-      ..click();
-    html.Url.revokeObjectUrl(url);
+    final uint8Bytes = Uint8List.fromList(bytes);
+    final blob = web.Blob([uint8Bytes.toJS].toJS);
+    final url = web.URL.createObjectURL(blob);
+    final anchor = web.document.createElement('a') as web.HTMLAnchorElement
+      ..href = url
+      ..download = 'training_logs_$timestamp.txt';
+    web.document.body?.append(anchor);
+    anchor.click();
+    anchor.remove();
+    web.URL.revokeObjectURL(url);
   }
 
   @override

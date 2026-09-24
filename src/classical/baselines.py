@@ -11,7 +11,11 @@ from sklearn.svm import SVC
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
+from sklearn.exceptions import ConvergenceWarning
+import warnings
 import xgboost as xgb
+
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 class SVMBaseline:
     def __init__(self, random_state=42):
@@ -58,7 +62,7 @@ class XGBoostBaseline:
 
 class MLPBaseline:
     def __init__(self, random_state=42):
-        self.model = MLPClassifier(hidden_layer_sizes=(100, 50), max_iter=500, random_state=random_state)
+        self.model = MLPClassifier(hidden_layer_sizes=(100, 50), max_iter=2000, random_state=random_state)
         self.name = "MLP (Neural Network)"
         
     def fit(self, X, y):

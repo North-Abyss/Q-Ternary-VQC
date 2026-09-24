@@ -35,6 +35,7 @@ def main():
     parser.add_argument("--classical-only", action="store_true", help="Skip quantum training, run classical only")
     parser.add_argument("--start-api", action="store_true", help="Start the Flask API after training")
     parser.add_argument("--max-ram", type=float, default=6.0, help="Maximum RAM limit in GB before halting training")
+    parser.add_argument("--run-timestamp", type=str, default=None, help="Timestamp ISO string passed from backend")
     
     args = parser.parse_args()
     
@@ -163,7 +164,12 @@ def main():
         quantum_model_trained = model
 
         import datetime
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        if args.run_timestamp:
+            dt = datetime.datetime.fromisoformat(args.run_timestamp)
+            timestamp = dt.strftime("%Y%m%d_%H%M%S")
+        else:
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        
         run_dir = f"models/run_{timestamp}"
         graphs_dir = f"{run_dir}/graphs"
         os.makedirs(graphs_dir, exist_ok=True)

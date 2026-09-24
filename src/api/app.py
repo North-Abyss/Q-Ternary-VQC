@@ -31,8 +31,27 @@ def load_history():
     if os.path.exists(HISTORY_FILE):
         try:
             import json
+            import datetime
             with open(HISTORY_FILE, 'r') as f:
-                return json.load(f)
+                history = json.load(f)
+            # Filter out entries where the run directory doesn't actually exist
+            repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            valid_history = []
+            for run in history:
+                timestamp_str = run.get('timestamp')
+                if timestamp_str:
+                    try:
+                        dt = datetime.datetime.fromisoformat(timestamp_str)
+                        run_folder_ts = dt.strftime("%Y%m%d_%H%M%S")
+                        run_dir = os.path.join(repo_root, "models", f"run_{run_folder_ts}")
+                        if os.path.exists(run_dir):
+                            # Ensure 'dataset' field exists for frontend compatibility
+                            if 'dataset' not in run:
+                                run['dataset'] = run.get('run_name') or run.get('dataset_filename') or "Unknown"
+                            valid_history.append(run)
+                    except:
+                        pass
+            return valid_history
         except:
             return []
     return []
@@ -63,12 +82,14 @@ active_model_timestamp: Any = None
 def load_pipeline(target_dir=None):
     global preprocessor, feature_selector, quantum_model, feature_names, active_model_timestamp
     try:
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        
         if target_dir:
             model_dir = target_dir
         else:
-            model_dir = "models/"
-            if os.path.exists("models/latest/preprocessor.pkl"):
-                model_dir = "models/latest/"
+            model_dir = os.path.join(repo_root, "models")
+            if os.path.exists(os.path.join(repo_root, "models", "latest", "preprocessor.pkl")):
+                model_dir = os.path.join(repo_root, "models", "latest")
             
         if not os.path.exists(os.path.join(model_dir, 'preprocessor.pkl')):
             print(f"⚠️ Models directory ({model_dir}) empty. Please train the model first.")
@@ -136,6 +157,9 @@ def _run_training_subprocess(epochs, layers, run_name, dataset_filename, n_featu
         training_state["logs"] = [f"Starting training job '{run_name}' on '{dataset_filename}'..."]
         
     dataset_path = os.path.join("data", dataset_filename)
+    
+    import datetime
+    run_timestamp_str = datetime.datetime.now().isoformat()
         
     cmd = [
         sys.executable, "src/main.py", 
@@ -144,7 +168,8 @@ def _run_training_subprocess(epochs, layers, run_name, dataset_filename, n_featu
         "--n-features", str(n_features),
         "--max-ram", str(max_ram),
         "--dataset-path", dataset_path,
-        "--run-name", run_name
+        "--run-name", run_name,
+        "--run-timestamp", run_timestamp_str
     ]
     if classical_only:
         cmd.append("--classical-only")
@@ -174,10 +199,9 @@ def _run_training_subprocess(epochs, layers, run_name, dataset_filename, n_featu
                     pass
                     
         # Save to history
-        import datetime
         history = load_history()
         history.append({
-            "timestamp": datetime.datetime.now().isoformat(),
+            "timestamp": run_timestamp_str,
             "epochs": epochs,
             "layers": layers,
             "n_features": n_features,
@@ -348,7 +372,7 @@ def get_model_info():
         "status": "success",
         "epochs": active_run.get("epochs"),
         "layers": active_run.get("layers"),
-        "dataset": active_run.get("dataset"),
+        "dataset": active_run.get("run_name") or active_run.get("dataset", "Unknown"),
         "f1_score": active_run.get("f1_score"),
         "timestamp": active_run.get("timestamp")
     })
@@ -364,7 +388,8 @@ def generate_graphs():
         import datetime
         dt = datetime.datetime.fromisoformat(timestamp_str)
         run_folder_ts = dt.strftime("%Y%m%d_%H%M%S")
-        run_dir = os.path.join("models", f"run_{run_folder_ts}")
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        run_dir = os.path.join(repo_root, "models", f"run_{run_folder_ts}")
         
         if not os.path.exists(run_dir):
             return jsonify({"error": f"Run directory {run_dir} not found."}), 404
@@ -394,7 +419,8 @@ def set_active_model():
         import datetime
         dt = datetime.datetime.fromisoformat(timestamp_str)
         run_folder_ts = dt.strftime("%Y%m%d_%H%M%S")
-        run_dir = os.path.join("models", f"run_{run_folder_ts}")
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        run_dir = os.path.join(repo_root, "models", f"run_{run_folder_ts}")
         
         if not os.path.exists(run_dir):
             return jsonify({"error": f"Run directory {run_dir} not found."}), 404

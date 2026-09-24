@@ -3,7 +3,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cross_file/cross_file.dart';
 // ignore: avoid_web_libraries_in_flutter, deprecated_member_use
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
+import 'dart:js_interop';
+import 'dart:typed_data';
 
 import '../api_service.dart';
 import '../widgets/app_notification.dart';
@@ -21,6 +23,7 @@ class _InferencePageState extends State<InferencePage> {
   bool _loadingBatch = false;
   Map<String, dynamic>? _result;
   Map<String, dynamic>? _modelInfo;
+  int _graphVersion = 0;
   List<dynamic> _history = [];
   String _baseUrl = '';
   
@@ -140,13 +143,16 @@ class _InferencePageState extends State<InferencePage> {
       
       final csvBytes = await _apiService.predictBatch(xfile);
       
-      // Download the resulting CSV bytes
-      final blob = html.Blob([csvBytes]);
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      html.AnchorElement(href: url)
-        ..setAttribute('download', 'batch_predictions.csv')
-        ..click();
-      html.Url.revokeObjectUrl(url);
+      final uint8Bytes = Uint8List.fromList(csvBytes);
+      final blob = web.Blob([uint8Bytes.toJS].toJS);
+      final url = web.URL.createObjectURL(blob);
+      final anchor = web.document.createElement('a') as web.HTMLAnchorElement
+        ..href = url
+        ..download = 'batch_predictions.csv';
+      web.document.body?.append(anchor);
+      anchor.click();
+      anchor.remove();
+      web.URL.revokeObjectURL(url);
       
       if (mounted) {
         AppNotification.show(context, 'Success', 'Batch predictions downloaded!');
@@ -325,20 +331,32 @@ class _InferencePageState extends State<InferencePage> {
                                 const Icon(Icons.model_training, color: Colors.blueAccent),
                                 const SizedBox(width: 8),
                                 Text('Active Model Context', style: Theme.of(context).textTheme.titleLarge),
-                                const Spacer(),
+                                const SizedBox(width: 16),
                                 if (_history.isNotEmpty)
-                                  DropdownButton<String>(
-                                    value: _modelInfo?['timestamp'],
-                                    hint: const Text('Select Model'),
-                                    items: _history.map((run) {
-                                      return DropdownMenuItem<String>(
-                                        value: run['timestamp'],
-                                        child: Text('${run['dataset']} - ${run['timestamp'].toString().split('T')[0]}'),
-                                      );
-                                    }).toList(),
-                                    onChanged: (val) {
-                                      if (val != null) _changeActiveModel(val);
-                                    },
+                                  Expanded(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      alignment: Alignment.centerRight,
+                                      value: _modelInfo?['timestamp'],
+                                      hint: const Text('Select Model'),
+                                      items: _history.map((run) {
+                                        final String label = '${run['dataset']} - ${run['timestamp'].toString().split('T')[0]}';
+                                        return DropdownMenuItem<String>(
+                                          value: run['timestamp'],
+                                          child: Tooltip(
+                                            message: label,
+                                            child: Text(
+                                              label,
+                                              overflow: TextOverflow.ellipsis,
+                                              textAlign: TextAlign.end,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        if (val != null) _changeActiveModel(val);
+                                      },
+                                    ),
                                   ),
                               ],
                             ),
@@ -388,8 +406,8 @@ class _InferencePageState extends State<InferencePage> {
                                   ? const Center(child: CircularProgressIndicator()) 
                                   : InteractiveViewer(
                                       child: Image.network(
-                                        '$_baseUrl/shap_images?timestamp=${_modelInfo?['timestamp'] ?? ''}',
-                                        key: ValueKey(_modelInfo?['timestamp'] ?? 'shap'),
+                                        '$_baseUrl/shap_images?timestamp=${_modelInfo?['timestamp'] ?? ''}&v=$_graphVersion',
+                                        key: ValueKey('${_modelInfo?['timestamp'] ?? 'shap'}_$_graphVersion'),
                                         errorBuilder: (context, error, stackTrace) => Center(
                                           child: Column(
                                             mainAxisSize: MainAxisSize.min,
@@ -404,7 +422,9 @@ class _InferencePageState extends State<InferencePage> {
                                                     try {
                                                       AppNotification.show(context, 'Generating', 'Please wait...');
                                                       await _apiService.generateGraphs(_modelInfo!['timestamp']);
-                                                      setState(() {}); // reload image
+                                                      setState(() {
+                                                        _graphVersion++;
+                                                      }); // reload image
                                                       if (context.mounted) {
                                                         AppNotification.show(context, 'Success', 'Graphs generated!');
                                                       }

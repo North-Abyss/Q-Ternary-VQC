@@ -44,10 +44,12 @@ def save_history(history):
         json.dump(history, f, indent=2)
 
 # Global variables to hold loaded pipeline
-preprocessor = None
-feature_selector = None
-quantum_model = None
-feature_names = []
+from typing import Any
+preprocessor: Any = None
+feature_selector: Any = None
+quantum_model: Any = None
+classical_baselines: Any = None
+feature_names: Any = []
 
 # Background Training State
 training_state = {
@@ -56,12 +58,17 @@ training_state = {
 }
 training_lock = threading.Lock()
 
-def load_pipeline():
-    global preprocessor, feature_selector, quantum_model, feature_names
+active_model_timestamp: Any = None
+
+def load_pipeline(target_dir=None):
+    global preprocessor, feature_selector, quantum_model, feature_names, active_model_timestamp
     try:
-        model_dir = "models/"
-        if os.path.exists("models/latest/preprocessor.pkl"):
-            model_dir = "models/latest/"
+        if target_dir:
+            model_dir = target_dir
+        else:
+            model_dir = "models/"
+            if os.path.exists("models/latest/preprocessor.pkl"):
+                model_dir = "models/latest/"
             
         if not os.path.exists(os.path.join(model_dir, 'preprocessor.pkl')):
             print(f"⚠️ Models directory ({model_dir}) empty. Please train the model first.")
@@ -83,6 +90,20 @@ def load_pipeline():
         model.load_state_dict(state_dict)
         model.eval()
         quantum_model = model
+        
+        # Determine the timestamp for active_model_timestamp
+        if target_dir:
+            ts_str = os.path.basename(target_dir).replace('run_', '')
+            try:
+                import datetime
+                active_model_timestamp = datetime.datetime.strptime(ts_str, "%Y%m%d_%H%M%S").isoformat()
+            except Exception:
+                active_model_timestamp = None
+        else:
+            history = load_history()
+            if history:
+                active_model_timestamp = history[-1].get("timestamp")
+                
         print(f"✅ Pipeline successfully loaded from {model_dir}. (VQC Layers: {n_layers})")
     except Exception as e:
         print(f"⚠️ Failed to load models: {e}")
@@ -102,22 +123,31 @@ def upload_dataset():
         return jsonify({"error": "No selected file"}), 400
         
     os.makedirs('data', exist_ok=True)
-    filename = str(file.filename) if file.filename else 'upload.csv'
+    filename = file.filename if file.filename else 'upload.csv'
     file_path = os.path.join('data', filename)
     file.save(file_path)
     return jsonify({"status": "success", "message": f"Saved as {file_path}", "filename": filename})
 
-def _run_training_subprocess(epochs, layers, dataset):
+def _run_training_subprocess(epochs, layers, run_name, dataset_filename, n_features, max_ram, classical_only):
     global training_state
     
     with training_lock:
         training_state["is_running"] = True
-        training_state["logs"] = [f"Starting training job for dataset '{dataset}'..."]
+        training_state["logs"] = [f"Starting training job '{run_name}' on '{dataset_filename}'..."]
         
-    cmd = [sys.executable, "src/main.py", "--epochs", str(epochs), "--n-layers", str(layers)]
-    # We append dataset arg if it's one of the recognized ones, or default to breast_cancer
-    if dataset == "ckd":
-        cmd.extend(["--dataset", "ckd"])
+    dataset_path = os.path.join("data", dataset_filename)
+        
+    cmd = [
+        sys.executable, "src/main.py", 
+        "--epochs", str(epochs), 
+        "--n-layers", str(layers),
+        "--n-features", str(n_features),
+        "--max-ram", str(max_ram),
+        "--dataset-path", dataset_path,
+        "--run-name", run_name
+    ]
+    if classical_only:
+        cmd.append("--classical-only")
     
     # __file__ is src/api/app.py. dirname x3 gives the repo root (QT)
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -150,7 +180,11 @@ def _run_training_subprocess(epochs, layers, dataset):
             "timestamp": datetime.datetime.now().isoformat(),
             "epochs": epochs,
             "layers": layers,
-            "dataset": dataset,
+            "n_features": n_features,
+            "max_ram": max_ram,
+            "classical_only": classical_only,
+            "dataset_filename": dataset_filename,
+            "run_name": run_name,
             "f1_score": f1_score,
             "logs": training_state["logs"].copy(),
             "success": process.returncode == 0
@@ -171,9 +205,13 @@ def train():
     config = request.json or {}
     epochs = int(config.get("epochs", 50))
     layers = int(config.get("layers", 3))
-    dataset = config.get("dataset", "breast_cancer")
+    n_features = int(config.get("n_features", 12))
+    max_ram = float(config.get("max_ram", 6.0))
+    classical_only = bool(config.get("classical_only", False))
+    dataset_filename = config.get("dataset_filename", "upload.csv")
+    run_name = config.get("run_name", "Custom Run")
     
-    thread = threading.Thread(target=_run_training_subprocess, args=(epochs, layers, dataset))
+    thread = threading.Thread(target=_run_training_subprocess, args=(epochs, layers, run_name, dataset_filename, n_features, max_ram, classical_only))
     thread.daemon = True
     thread.start()
     
@@ -217,10 +255,11 @@ def cleanup():
             os.remove(f)
         
         # Also stop any running process? (Not implementing process kill here for safety, just files)
-        global preprocessor, feature_selector, quantum_model
+        global preprocessor, feature_selector, quantum_model, classical_baselines
         preprocessor = None
         feature_selector = None
         quantum_model = None
+        classical_baselines = None
         
         return jsonify({"status": "success", "message": "All models and history cleared."})
     except Exception as e:
@@ -295,20 +334,90 @@ def get_model_info():
     if not history:
         return jsonify({"status": "idle", "message": "No model trained yet."})
         
-    latest_run = history[-1]
+    active_run = None
+    if active_model_timestamp:
+        for run in history:
+            if run.get("timestamp") == active_model_timestamp:
+                active_run = run
+                break
+                
+    if not active_run:
+        active_run = history[-1]
+        
     return jsonify({
         "status": "success",
-        "epochs": latest_run.get("epochs"),
-        "layers": latest_run.get("layers"),
-        "dataset": latest_run.get("dataset"),
-        "f1_score": latest_run.get("f1_score"),
-        "timestamp": latest_run.get("timestamp")
+        "epochs": active_run.get("epochs"),
+        "layers": active_run.get("layers"),
+        "dataset": active_run.get("dataset"),
+        "f1_score": active_run.get("f1_score"),
+        "timestamp": active_run.get("timestamp")
     })
+
+@app.route('/generate_graphs', methods=['POST'])
+def generate_graphs():
+    data = request.json or {}
+    timestamp_str = data.get('timestamp')
+    if not timestamp_str:
+        return jsonify({"error": "No timestamp provided."}), 400
+        
+    try:
+        import datetime
+        dt = datetime.datetime.fromisoformat(timestamp_str)
+        run_folder_ts = dt.strftime("%Y%m%d_%H%M%S")
+        run_dir = os.path.join("models", f"run_{run_folder_ts}")
+        
+        if not os.path.exists(run_dir):
+            return jsonify({"error": f"Run directory {run_dir} not found."}), 404
+            
+        cmd = [sys.executable, "src/generate_graphs.py", "--run-dir", run_dir]
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        
+        process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=repo_root)
+        if process.returncode != 0:
+            return jsonify({"error": "Graph generation failed", "logs": process.stdout}), 500
+            
+        return jsonify({"status": "success", "message": "Graphs generated successfully.", "logs": process.stdout})
+        
+    except Exception as e:
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+@app.route('/set_active_model', methods=['POST'])
+def set_active_model():
+    data = request.json or {}
+    timestamp_str = data.get('timestamp')
+    if not timestamp_str:
+        # Revert to latest if no timestamp
+        load_pipeline()
+        return jsonify({"status": "success", "message": "Reverted to latest model."})
+        
+    try:
+        import datetime
+        dt = datetime.datetime.fromisoformat(timestamp_str)
+        run_folder_ts = dt.strftime("%Y%m%d_%H%M%S")
+        run_dir = os.path.join("models", f"run_{run_folder_ts}")
+        
+        if not os.path.exists(run_dir):
+            return jsonify({"error": f"Run directory {run_dir} not found."}), 404
+            
+        load_pipeline(target_dir=run_dir)
+        return jsonify({"status": "success", "message": f"Active model set to {run_dir}."})
+    except Exception as e:
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 @app.route('/shap_images', methods=['GET'])
 def get_shap_images():
-    # Return the summary plot from the outputs directory
-    outputs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'outputs')
+    timestamp_str = request.args.get('timestamp')
+    outputs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'models', 'latest', 'graphs')
+    
+    if timestamp_str:
+        try:
+            import datetime
+            dt = datetime.datetime.fromisoformat(timestamp_str)
+            run_folder_ts = dt.strftime("%Y%m%d_%H%M%S")
+            outputs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'models', f"run_{run_folder_ts}", 'graphs')
+        except Exception:
+            pass
+            
     filename = 'shap_summary.png'
     if not os.path.exists(os.path.join(outputs_dir, filename)):
         return jsonify({"error": "SHAP image not found."}), 404

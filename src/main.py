@@ -15,7 +15,7 @@ import torch.nn as nn
 import torch.optim as optim
 import time
 from tqdm import tqdm
-from data.loader import load_wisconsin_breast_cancer, load_ckd_dataset
+from data.loader import load_csv_dataset
 from data.preprocessor import Preprocessor
 from data.feature_selector import FeatureSelector
 from quantum.qutrit_model import QutritClassifier
@@ -27,7 +27,8 @@ from api import app
 
 def main():
     parser = argparse.ArgumentParser(description="Hybrid Quantum ML Engine for MedTech")
-    parser.add_argument("--dataset", type=str, default="breast_cancer", choices=["breast_cancer", "ckd"])
+    parser.add_argument("--dataset-path", type=str, required=True, help="Path to the CSV dataset")
+    parser.add_argument("--run-name", type=str, default="Custom Run", help="Name of the run")
     parser.add_argument("--n-features", type=int, default=12, help="Number of features after PCA/MI (must be multiple of 3)")
     parser.add_argument("--n-layers", type=int, default=3, help="Number of layers in Quantum Neural Network")
     parser.add_argument("--epochs", type=int, default=50, help="Training epochs for QNN")
@@ -39,16 +40,13 @@ def main():
     
     print("===============================================")
     print("🚀 Starting QMLPlatform 🚀")
-    print(f"📊 Dataset: {args.dataset}")
+    print(f"📊 Dataset: {args.run_name} ({args.dataset_path})")
     print(f"🎯 Target Features: {args.n_features}")
     print("===============================================\n")
 
     # 1. Load Data
     print("--- 📥 1. Loading Data ---")
-    if args.dataset == "breast_cancer":
-        bundle = load_wisconsin_breast_cancer()
-    else:
-        bundle = load_ckd_dataset("data/kidney_disease.csv")
+    bundle = load_csv_dataset(args.dataset_path, dataset_name=args.run_name)
     
     print(f"✅ Loaded {bundle.dataset_name}: {bundle.X_train.shape[0]} train, {bundle.X_test.shape[0]} test samples.")
 
@@ -115,6 +113,7 @@ def main():
         for epoch in epoch_iterator:
             model.train()
             epoch_loss = 0.0
+            outputs, loss, batch_X, batch_y = None, None, None, None
             for batch_X, batch_y in dataloader:
                 batch_X = batch_X.to(device)
                 batch_y = batch_y.to(device)
@@ -163,38 +162,38 @@ def main():
         print(f"\n✅ Quantum Model Accuracy: {q_metrics['Accuracy']:.2%} | F1: {q_metrics['F1']:.2%}")
         quantum_model_trained = model
 
-        # 6. Evaluation & Visualization
-        print("\n--- 📈 6. Generating Visualizations ---")
-        viz = Visualizer()
-        viz.plot_training_loss(losses)
-        viz.plot_compression_ratio(bundle_selected.X_train.shape[1], n_wires)
-        
-        # Combine probabilities for ROC
-        roc_dict = {name: res["y_prob"] for name, res in classical_results.items()}
-        roc_dict["Qutrit VQC"] = q_probs
-        viz.plot_roc_curves(roc_dict, bundle_compressed.y_test)
-        
-        # Confusion Matrices
-        viz.plot_confusion_matrix(bundle_compressed.y_test, q_preds, "Qutrit VQC")
-        best_classical = baselines[0] # Just plot the first one (SVM) as representative
-        c_preds = best_classical.predict(bundle_selected.X_test)
-        viz.plot_confusion_matrix(bundle_selected.y_test, c_preds, best_classical.name)
-        
-        print("🖼️ Visualizations saved to outputs/ directory.")
-
-        # 7. XAI (Explainability)
-        print("\n--- 🧠 7. Generating SHAP Explanations ---")
-        # Explain classical SVM as it's faster
-        xai = XAIEngine(baselines[0], bundle_selected.X_train, bundle_selected.feature_names)
-        xai.explain_dataset(bundle_selected.X_test, n_samples=30)
-        print("🖼️ SHAP plots saved to outputs/ directory.")
-
-        # 8. Save Trained Models
-        print("\n--- 💾 8. Saving Trained Models to Disk ---")
         import datetime
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         run_dir = f"models/run_{timestamp}"
-        os.makedirs(run_dir, exist_ok=True)
+        graphs_dir = f"{run_dir}/graphs"
+        os.makedirs(graphs_dir, exist_ok=True)
+        
+        # 6. Save Evaluation Data for On-Demand Graph Generation
+        print("\n--- 📈 6. Saving Evaluation Data (Graphs on demand) ---")
+        best_classical = baselines[0]
+        c_preds = best_classical.predict(bundle_selected.X_test)
+        
+        roc_dict = {name: res["y_prob"] for name, res in classical_results.items()}
+        roc_dict["Qutrit VQC"] = q_probs
+        
+        eval_data = {
+            "losses": losses,
+            "original_dim": bundle_selected.X_train.shape[1],
+            "n_wires": n_wires,
+            "roc_dict": roc_dict,
+            "y_test": bundle_compressed.y_test,
+            "q_preds": q_preds,
+            "c_preds": c_preds,
+            "best_classical_name": best_classical.name,
+            "X_train_selected": bundle_selected.X_train,
+            "X_test_selected": bundle_selected.X_test,
+            "feature_names": bundle_selected.feature_names
+        }
+        joblib.dump(eval_data, f"{run_dir}/eval_data.pkl")
+        print(f"✅ Saved Evaluation Data to {run_dir}/eval_data.pkl (Generate graphs from UI).")
+
+        # 8. Save Trained Models
+        print("\n--- 💾 8. Saving Trained Models to Disk ---")
         
         # Save Quantum Model Weights
         torch.save(quantum_model_trained.state_dict(), f"{run_dir}/qutrit_vqc_weights.pt")

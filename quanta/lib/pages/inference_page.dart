@@ -6,6 +6,7 @@ import 'package:cross_file/cross_file.dart';
 import 'dart:html' as html;
 
 import '../api_service.dart';
+import '../widgets/app_notification.dart';
 
 class InferencePage extends StatefulWidget {
   const InferencePage({super.key});
@@ -20,6 +21,7 @@ class _InferencePageState extends State<InferencePage> {
   bool _loadingBatch = false;
   Map<String, dynamic>? _result;
   Map<String, dynamic>? _modelInfo;
+  List<dynamic> _history = [];
   String _baseUrl = '';
   
   List<String> _featureNames = [];
@@ -36,6 +38,7 @@ class _InferencePageState extends State<InferencePage> {
     await Future.wait([
       _loadFeatureNames(),
       _loadModelInfo(),
+      _loadHistory(),
     ]);
   }
 
@@ -49,6 +52,34 @@ class _InferencePageState extends State<InferencePage> {
       }
     } catch (e) {
       debugPrint('Could not load model info: $e');
+    }
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final history = await _apiService.getHistory();
+      if (mounted) {
+        setState(() {
+          _history = history.reversed.toList(); // newest first
+        });
+      }
+    } catch (e) {
+      debugPrint('Could not load history: $e');
+    }
+  }
+
+  Future<void> _changeActiveModel(String timestamp) async {
+    try {
+      AppNotification.show(context, 'Switching Model', 'Loading model context...');
+      await _apiService.setActiveModel(timestamp);
+      await _loadModelInfo();
+      if (mounted) {
+        AppNotification.show(context, 'Success', 'Active model switched successfully.');
+      }
+    } catch (e) {
+      if (mounted) {
+        AppNotification.show(context, 'Error', 'Failed to switch model: $e', isError: true);
+      }
     }
   }
 
@@ -80,7 +111,7 @@ class _InferencePageState extends State<InferencePage> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        AppNotification.show(context, 'Inference Error', e.toString(), isError: true);
       }
     } finally {
       if (mounted) {
@@ -118,11 +149,11 @@ class _InferencePageState extends State<InferencePage> {
       html.Url.revokeObjectUrl(url);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Batch predictions downloaded!')));
+        AppNotification.show(context, 'Success', 'Batch predictions downloaded!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        AppNotification.show(context, 'Batch Error', e.toString(), isError: true);
       }
     } finally {
       if (mounted) {
@@ -294,6 +325,21 @@ class _InferencePageState extends State<InferencePage> {
                                 const Icon(Icons.model_training, color: Colors.blueAccent),
                                 const SizedBox(width: 8),
                                 Text('Active Model Context', style: Theme.of(context).textTheme.titleLarge),
+                                const Spacer(),
+                                if (_history.isNotEmpty)
+                                  DropdownButton<String>(
+                                    value: _modelInfo?['timestamp'],
+                                    hint: const Text('Select Model'),
+                                    items: _history.map((run) {
+                                      return DropdownMenuItem<String>(
+                                        value: run['timestamp'],
+                                        child: Text('${run['dataset']} - ${run['timestamp'].toString().split('T')[0]}'),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) _changeActiveModel(val);
+                                    },
+                                  ),
                               ],
                             ),
                             const Divider(),
@@ -342,9 +388,37 @@ class _InferencePageState extends State<InferencePage> {
                                   ? const Center(child: CircularProgressIndicator()) 
                                   : InteractiveViewer(
                                       child: Image.network(
-                                        '$_baseUrl/shap_images',
-                                        errorBuilder: (context, error, stackTrace) => const Center(
-                                          child: Text('SHAP summary plot not available.\nTrain the model to generate one.'),
+                                        '$_baseUrl/shap_images?timestamp=${_modelInfo?['timestamp'] ?? ''}',
+                                        key: ValueKey(_modelInfo?['timestamp'] ?? 'shap'),
+                                        errorBuilder: (context, error, stackTrace) => Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Text('SHAP summary plot not available.', textAlign: TextAlign.center),
+                                              const SizedBox(height: 16),
+                                              if (_modelInfo != null && _modelInfo!['status'] == 'success')
+                                                FilledButton.icon(
+                                                  icon: const Icon(Icons.bar_chart),
+                                                  label: const Text('Generate Explanations'),
+                                                  onPressed: () async {
+                                                    try {
+                                                      AppNotification.show(context, 'Generating', 'Please wait...');
+                                                      await _apiService.generateGraphs(_modelInfo!['timestamp']);
+                                                      setState(() {}); // reload image
+                                                      if (context.mounted) {
+                                                        AppNotification.show(context, 'Success', 'Graphs generated!');
+                                                      }
+                                                    } catch (e) {
+                                                      if (context.mounted) {
+                                                        AppNotification.show(context, 'Error', e.toString(), isError: true);
+                                                      }
+                                                    }
+                                                  },
+                                                )
+                                              else
+                                                const Text('Train the model to generate one.', textAlign: TextAlign.center),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),

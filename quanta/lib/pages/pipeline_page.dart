@@ -7,6 +7,7 @@ import 'package:cross_file/cross_file.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import '../api_service.dart';
+import '../widgets/app_notification.dart';
 
 
 class PipelinePage extends StatefulWidget {
@@ -20,6 +21,10 @@ class _PipelinePageState extends State<PipelinePage> with SingleTickerProviderSt
   final ApiService _api = ApiService();
   double _epochs = 50;
   double _layers = 3;
+  double _nFeatures = 12;
+  double _maxRam = 6.0;
+  bool _classicalOnly = false;
+  String _runName = 'test-${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}-${(DateTime.now().hour % 12 == 0 ? 12 : DateTime.now().hour % 12).toString().padLeft(2, '0')}-${DateTime.now().minute.toString().padLeft(2, '0')}-${DateTime.now().hour >= 12 ? "PM" : "AM"}';
   
   bool _isTraining = false;
   bool _isUploading = false;
@@ -109,7 +114,11 @@ class _PipelinePageState extends State<PipelinePage> with SingleTickerProviderSt
       await _api.triggerTraining({
         "epochs": _epochs.toInt(),
         "layers": _layers.toInt(),
-        "dataset": "breast_cancer"
+        "n_features": _nFeatures.toInt(),
+        "max_ram": _maxRam,
+        "classical_only": _classicalOnly,
+        "run_name": _runName,
+        "dataset_filename": _fileName ?? "upload.csv",
       });
       _checkStatus();
     } catch (e) {
@@ -117,7 +126,7 @@ class _PipelinePageState extends State<PipelinePage> with SingleTickerProviderSt
         setState(() {
           _isTraining = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        AppNotification.show(context, 'Training Error', e.toString(), isError: true);
       }
     }
   }
@@ -152,15 +161,11 @@ class _PipelinePageState extends State<PipelinePage> with SingleTickerProviderSt
               setState(() {
                 _dataUploaded = true;
               });
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Success: ${res["message"]}'), backgroundColor: Colors.green),
-              );
+              AppNotification.show(context, 'Upload Success', res["message"]);
             }
           } catch (error) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error: $error'), backgroundColor: Colors.red),
-              );
+              AppNotification.show(context, 'Upload Error', error.toString(), isError: true);
             }
           } finally {
             if (mounted) {
@@ -253,15 +258,19 @@ class _PipelinePageState extends State<PipelinePage> with SingleTickerProviderSt
       appBar: AppBar(title: const Text('Q-Ternary Pipeline')),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
           children: [
-            // Left Column: Data Upload and Hyperparameters
             Expanded(
-              flex: 1,
-              child: Column(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Step 1: Data Setup
+                  // Left Column: Data Upload and Hyperparameters
+                  Expanded(
+                    flex: 1,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          // Step 1: Data Setup
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
@@ -322,7 +331,7 @@ class _PipelinePageState extends State<PipelinePage> with SingleTickerProviderSt
                                 }
                               },
                               icon: const Icon(Icons.download, size: 16),
-                              label: const Text('Download Sample Breast Cancer CSV'),
+                              label: const Text('Download Sample CSV'),
                             ),
                           ),
                         ],
@@ -355,6 +364,26 @@ class _PipelinePageState extends State<PipelinePage> with SingleTickerProviderSt
                             ],
                           ),
                           const SizedBox(height: 24),
+                          TextFormField(
+                            initialValue: _runName,
+                            decoration: const InputDecoration(
+                              labelText: 'Run Name', 
+                              border: OutlineInputBorder(),
+                              helperText: 'A unique name for this training run.',
+                            ),
+                            enabled: !_isTraining,
+                            onChanged: (val) => _runName = val,
+                          ),
+                          const SizedBox(height: 16),
+                          Text('Features after Selection: ${_nFeatures.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Slider(
+                            value: _nFeatures,
+                            min: 4,
+                            max: 30,
+                            divisions: 26,
+                            onChanged: _isTraining ? null : (val) => setState(() => _nFeatures = val),
+                          ),
+                          const SizedBox(height: 16),
                           Text('Epochs: ${_epochs.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold)),
                           Slider(
                             value: _epochs,
@@ -371,6 +400,23 @@ class _PipelinePageState extends State<PipelinePage> with SingleTickerProviderSt
                             max: 10,
                             divisions: 9,
                             onChanged: _isTraining ? null : (val) => setState(() => _layers = val),
+                          ),
+                          const SizedBox(height: 16),
+                          Text('Max RAM Watchdog: ${_maxRam.toStringAsFixed(1)} GB', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Slider(
+                            value: _maxRam,
+                            min: 1.0,
+                            max: 16.0,
+                            divisions: 30,
+                            onChanged: _isTraining ? null : (val) => setState(() => _maxRam = val),
+                          ),
+                          const SizedBox(height: 16),
+                          SwitchListTile(
+                            title: const Text('Classical Models Only'),
+                            subtitle: const Text('Skip quantum VQC training'),
+                            value: _classicalOnly,
+                            onChanged: _isTraining ? null : (val) => setState(() => _classicalOnly = val),
+                            contentPadding: EdgeInsets.zero,
                           ),
                           const SizedBox(height: 32),
                           FilledButton.icon(
@@ -396,6 +442,7 @@ class _PipelinePageState extends State<PipelinePage> with SingleTickerProviderSt
                 ],
               ),
             ),
+          ),
             const SizedBox(width: 24),
             
             // Right Column: Output Abstraction
@@ -466,10 +513,27 @@ class _PipelinePageState extends State<PipelinePage> with SingleTickerProviderSt
                                     const SizedBox(height: 16),
                                     const Text('Models successfully compiled and saved.', style: TextStyle(color: Colors.grey)),
                                     const SizedBox(height: 24),
-                                    FilledButton.icon(
-                                      onPressed: _downloadLogs,
-                                      icon: const Icon(Icons.download),
-                                      label: const Text('Download Training Report'),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        FilledButton.icon(
+                                          onPressed: _downloadLogs,
+                                          icon: const Icon(Icons.description),
+                                          label: const Text('Report'),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        FilledButton.icon(
+                                          onPressed: () async {
+                                            final baseUrl = await _api.getBaseUrl();
+                                            final uri = Uri.parse('$baseUrl/download_model?filename=qutrit_vqc_weights.pt');
+                                            if (await canLaunchUrl(uri)) {
+                                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                            }
+                                          },
+                                          icon: const Icon(Icons.download),
+                                          label: const Text('Download Model'),
+                                        ),
+                                      ],
                                     )
                                   ] else ...[
                                     Icon(Icons.bolt, size: 100, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)),
@@ -500,7 +564,7 @@ class _PipelinePageState extends State<PipelinePage> with SingleTickerProviderSt
                                   final text = _logs.join('\n');
                                   await Clipboard.setData(ClipboardData(text: text));
                                   if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logs copied to clipboard.')));
+                                  AppNotification.show(context, 'Copied', 'Logs copied to clipboard.');
                                 },
                                 icon: const Icon(Icons.copy),
                                 label: const Text('Copy Logs'),
@@ -513,6 +577,9 @@ class _PipelinePageState extends State<PipelinePage> with SingleTickerProviderSt
                   ),
                 ),
               ),
+            ),
+          ],
+        ),
             ),
           ],
         ),

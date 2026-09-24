@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'dart:html' as html;
 import 'dart:convert';
 import '../api_service.dart';
+import '../widgets/app_notification.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -40,7 +41,7 @@ class _HistoryPageState extends State<HistoryPage> {
         setState(() {
           _loading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading history: $e')));
+        AppNotification.show(context, 'History Error', 'Error loading history: $e', isError: true);
       }
     }
   }
@@ -159,11 +160,28 @@ class _HistoryPageState extends State<HistoryPage> {
                                             Row(
                                               children: [
                                                 TextButton.icon(
+                                                  icon: const Icon(Icons.bar_chart, size: 16),
+                                                  label: const Text('Generate Graphs'),
+                                                  onPressed: () async {
+                                                    try {
+                                                      AppNotification.show(context, 'Generating Graphs', 'This may take a moment...');
+                                                      final res = await _apiService.generateGraphs(timestamp);
+                                                      if (context.mounted) {
+                                                        AppNotification.show(context, 'Success', res['message'] ?? 'Graphs generated.');
+                                                      }
+                                                    } catch (e) {
+                                                      if (context.mounted) {
+                                                        AppNotification.show(context, 'Error', e.toString(), isError: true);
+                                                      }
+                                                    }
+                                                  },
+                                                ),
+                                                TextButton.icon(
                                                   icon: const Icon(Icons.copy, size: 16),
                                                   label: const Text('Copy'),
                                                   onPressed: () {
                                                     Clipboard.setData(ClipboardData(text: logs.join('\n')));
-                                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logs copied to clipboard')));
+                                                    AppNotification.show(context, 'Copied', 'Logs copied to clipboard');
                                                   },
                                                 ),
                                                 TextButton.icon(

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cross_file/cross_file.dart';
 import '../api_service.dart';
+import '../widgets/app_notification.dart';
 import '../providers/theme_provider.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -95,9 +96,27 @@ class _DashboardPageState extends State<DashboardPage> {
         actions: [
           TextButton.icon(
             onPressed: () async {
+              try {
+                AppNotification.show(ctx, 'Generating Graphs', 'This may take a moment...');
+                final timestamp = run['timestamp'] ?? '';
+                final res = await _api.generateGraphs(timestamp);
+                if (ctx.mounted) {
+                  AppNotification.show(ctx, 'Success', res['message'] ?? 'Graphs generated.');
+                }
+              } catch (e) {
+                if (ctx.mounted) {
+                  AppNotification.show(ctx, 'Error', e.toString(), isError: true);
+                }
+              }
+            },
+            icon: const Icon(Icons.bar_chart),
+            label: const Text('Generate Graphs'),
+          ),
+          TextButton.icon(
+            onPressed: () async {
               await Clipboard.setData(ClipboardData(text: logsText));
               if (ctx.mounted) {
-                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Logs copied to clipboard.')));
+                AppNotification.show(context, 'Copied', 'Logs copied to clipboard.');
               }
             },
             icon: const Icon(Icons.copy),
@@ -142,12 +161,12 @@ class _DashboardPageState extends State<DashboardPage> {
       try {
         await _api.cleanupModels();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('System cleaned up successfully.')));
+          AppNotification.show(context, 'Cleanup', 'System cleaned up successfully.');
           _loadHistory();
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+          AppNotification.show(context, 'Cleanup Error', e.toString(), isError: true);
         }
       }
     }
@@ -158,7 +177,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final url = _api.getDownloadUrl(baseUrl, filename);
     if (!await launchUrl(Uri.parse(url))) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not download $filename')));
+        AppNotification.show(context, 'Download Error', 'Could not download $filename', isError: true);
       }
     }
   }

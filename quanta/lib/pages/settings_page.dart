@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../api_service.dart';
+import '../widgets/app_notification.dart';
 import '../providers/theme_provider.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -30,9 +31,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _saveSettings() async {
     await _apiService.setBaseUrl(_urlController.text);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Settings saved successfully'), backgroundColor: Colors.green),
-      );
+      AppNotification.show(context, 'Success', 'Settings saved successfully');
     }
   }
 

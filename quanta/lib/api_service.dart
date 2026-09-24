@@ -90,6 +90,38 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> generateGraphs(String timestamp) async {
+    final baseUrl = await getBaseUrl();
+    final response = await http.post(
+      Uri.parse('$baseUrl/generate_graphs'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'timestamp': timestamp}),
+    );
+    
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return data;
+    } else {
+      throw Exception(data['error'] ?? 'Failed to generate graphs');
+    }
+  }
+
+  Future<Map<String, dynamic>> setActiveModel(String timestamp) async {
+    final baseUrl = await getBaseUrl();
+    final response = await http.post(
+      Uri.parse('$baseUrl/set_active_model'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'timestamp': timestamp}),
+    );
+    
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return data;
+    } else {
+      throw Exception(data['error'] ?? 'Failed to set active model');
+    }
+  }
+
   Future<void> cleanupModels() async {
     final baseUrl = await getBaseUrl();
     final response = await http.post(Uri.parse('$baseUrl/cleanup'));

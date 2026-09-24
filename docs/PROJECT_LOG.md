@@ -68,3 +68,34 @@ Build the Flutter frontend and connect it to the Flask `/predict` endpoint.
 - Built `test/run_cv_test.py` strictly enforcing `StratifiedKFold(n=5)`.
 - Implemented McNemar's statistical significance testing against classical `RandomForestClassifier`.
 - Ensured perfect data isolation between folds (no data leakage during PCA/Q-Ternary Preprocessing).
+
+### 4. Layout & Deprecation Polish
+- Resolved `RenderFlex` overflow errors on smaller screens by wrapping the `pipeline_page.dart` horizontal constraints tightly and injecting a `SingleChildScrollView` exclusively into the hyperparameters column.
+- Purged deprecated `value:` implementations from `DropdownButtonFormField` across the Flutter frontend.
+- Hardened Pyright memory loop definitions in `src/main.py` ensuring static initializations (`outputs = None`) prevent UnboundLocalError during emergency halting.
+
+### Date: 2026-09-24 - Goal Task Execution
+
+**Tasks Accomplished:**
+1. **Pyright Errors Resolved**:
+   - Fixed missing `roc_dict` reference in `src/main.py`.
+   - Fixed typing issues with `stratify` in `src/data/loader.py`.
+2. **Backend API Enhancements**:
+   - Updated `app.py` `load_pipeline` to accept a specific model directory timestamp.
+   - Added `POST /set_active_model` to allow dynamically switching the active global model used for inference.
+   - Updated `/model_info` and `/shap_images` to accurately reflect and query the currently active model.
+3. **Frontend UI Enhancements**:
+   - Updated `inference_page.dart` to feature a Dropdown selector in the Active Model Context section, populated with history data.
+   - Tied the "Generate Explanations" button and the active model context together seamlessly so SHAP plots correctly match the model selected.
+
+### Date: 2026-09-24 - Folder Cleanup
+
+**Tasks Accomplished:**
+1. **Cleaned up redundant root directories**: 
+   - Merged the contents of root-level `graphs/` and `outputs/` directories.
+   - Moved all resulting visualization assets (PNGs, txt) into the formatted run folder: `models/run_20260923_201548/graphs/`.
+   - Safely deleted the now-empty root-level `graphs/` and `outputs/` directories to maintain a clean workspace.
+2. **README Documentation Update**:
+   - Fixed broken image references in `README.md` caused by the directory consolidation.
+   - Images for Loss Curves, ROC Curves, and SHAP Explainability now correctly point to `models/run_20260923_201548/graphs/`.
+   - Appended a new section showcasing the "Quantum Utility & Efficiency" graphs (Accuracy Comparison and Efficiency Scatter plot).

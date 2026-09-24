@@ -22,9 +22,9 @@ def load_wisconsin_breast_cancer(test_size: float = 0.2, random_state: int = 42)
     """
     # Load dataset
     data = load_breast_cancer()
-    X = data.data
-    y = data.target
-    feature_names = list(data.feature_names)
+    X = data.data # type: ignore
+    y = data.target # type: ignore
+    feature_names = list(data.feature_names) # type: ignore
     
     # Stratified split to ensure class balance in train and test sets
     X_train, X_test, y_train, y_test = train_test_split(
@@ -43,17 +43,22 @@ def load_wisconsin_breast_cancer(test_size: float = 0.2, random_state: int = 42)
         dataset_name="Wisconsin Breast Cancer"
     )
 
-def load_ckd_dataset(file_path: str, test_size: float = 0.2, random_state: int = 42) -> DataBundle:
+def load_csv_dataset(file_path: str, dataset_name: str = "Custom Dataset", test_size: float = 0.2, random_state: int = 42) -> DataBundle:
     """
-    Loads the Chronic Kidney Disease dataset from a CSV file.
+    Loads a dataset from a CSV file.
     Assumes the target column is named 'class' or is the last column.
     """
     df = pd.read_csv(file_path)
     
-    # Simple assumption: target is 'class' or the last column
-    target_col = 'class' if 'class' in df.columns else df.columns[-1]
+    # Simple assumption: target is 'class', 'target' or the last column
+    if 'class' in df.columns:
+        target_col = 'class'
+    elif 'target' in df.columns:
+        target_col = 'target'
+    else:
+        target_col = df.columns[-1]
     
-    y = df[target_col].values
+    y = df[target_col].values.tolist()
     X = df.drop(columns=[target_col]).values
     feature_names = list(df.drop(columns=[target_col]).columns)
     
@@ -61,7 +66,7 @@ def load_ckd_dataset(file_path: str, test_size: float = 0.2, random_state: int =
         X, y, 
         test_size=test_size, 
         random_state=random_state, 
-        stratify=y
+        stratify=y # type: ignore
     )
     
     return DataBundle(
@@ -70,5 +75,5 @@ def load_ckd_dataset(file_path: str, test_size: float = 0.2, random_state: int =
         y_train=y_train,
         y_test=y_test,
         feature_names=feature_names,
-        dataset_name="Chronic Kidney Disease"
+        dataset_name=dataset_name
     )

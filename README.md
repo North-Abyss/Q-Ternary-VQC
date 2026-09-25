@@ -95,11 +95,11 @@ Our end-to-end pipeline consists of five pillars:
 
 ```
 ┌─────────────────────┐    ┌───────────────────────┐    ┌────────────────────────────┐    ┌──────────────────────┐
-│  Classical Ingestion │    │  Q-Ternary Compression│    │  Qutrit VQC (N Layers)     │    │  Measurement         │
+│ Classical Ingestion │    │ Q-Ternary Compression │    │  Qutrit VQC (N Layers)     │    │  Measurement         │
 │                     │    │                       │    │                            │    │                      │
 │  Raw Data (30 feat) │───▶│  MI Select → 12 feat  │───▶│  TRZ Data Embedding        │───▶│  Gell-Mann λ₃        │
 │  StandardScaler     │    │  Scale + Binarize     │    │  TRX/TRY/TRZ Rotations     │    │  Sum Expectations    │
-│  Train/Test Split   │    │  3-bit → 2-trit       │    │  CSUM Ring Entanglement     │    │  Sigmoid → P(cancer) │
+│  Train/Test Split   │    │  3-bit → 2-trit       │    │  CSUM Ring Entanglement    │    │  Sigmoid → P(cancer) │
 │  (80/20, stratified)│    │  12 bits → 8 trits    │    │  ↻ Data Re-uploading       │    │                      │
 └─────────────────────┘    └───────────────────────┘    └────────────────────────────┘    └──────────────────────┘
 ```

@@ -79,16 +79,16 @@ Epoch 50/50 | Loss: 0.3641 | LR: 0.01000 | Mem: 1.14 GB
 
 **1. ROC Curves (Quantum vs Classical)**
 
-![ROC Curves](showcase_graphs/roc_curves.png)
+![ROC Curves](/showcase_graphs/roc_curves.png)
 
 **2. Quantum Confusion Matrix**
 
-![Quantum Confusion Matrix](showcase_graphs/cm_qutrit_vqc.png)
+![Quantum Confusion Matrix](/showcase_graphs/cm_qutrit_vqc.png)
 
 **3. SHAP Explainability (Feature Importance)**
 
-![SHAP Summary](showcase_graphs/shap_summary.png)
+![SHAP Summary](/showcase_graphs/shap_summary.png)
 
 **4. Training Convergence**
 
-![Training Loss](showcase_graphs/training_loss.png)
+![Training Loss](/showcase_graphs/training_loss.png)

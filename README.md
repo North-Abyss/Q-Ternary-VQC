@@ -224,33 +224,14 @@ Q-Ternary-VQC/
 └── test/                        # K-Fold CV harness, held-out test scripts
 ```
 
----
+## ❓ Frequently Asked Questions (FAQ)
 
-## ❓ Frequently Asked Questions
-
-**1. Why is the quantum accuracy lower than classical XGBoost?**
-
-This is expected and well-understood in the QML research community. Our VQC achieves 87.72% accuracy using only **72 trainable parameters**, compared to thousands used by classical ensemble models. The goal is not to exceed classical accuracy on a well-studied benchmark, but to demonstrate **extreme parameter efficiency** — the VQC captures meaningful decision boundaries with ~97% fewer parameters, which has significant implications for generalization, overfitting resistance, and deployment on resource-constrained quantum hardware.
-
-**2. Is the $2^3 \to 3^2$ mapping a new mathematical discovery?**
-
-No. The radix economy of ternary logic has been studied since the 1950s (e.g., the Soviet Setun computer). Our novel contribution is the first functional, end-to-end software pipeline that applies this mathematical compression to real-world tabular medical data inside a Variational Quantum Classifier. The compression layer, circuit architecture, and integration with SHAP explainability are all original engineering.
-
-**3. Does this run on real quantum hardware?**
-
-Currently, it simulates on a classical CPU using PennyLane's `default.qutrit` device. The architecture is hardware-agnostic — the circuit uses standard qutrit rotation gates (`TRX`, `TRY`, `TRZ`) and `CSUM` entanglement, which will compile directly to physical qutrit-capable superconducting chips (e.g., transmon qutrits) once they become publicly accessible via cloud quantum platforms.
-
-**4. Why only the Breast Cancer dataset?**
-
-The Wisconsin Breast Cancer Diagnostic Dataset is a standard ML benchmark (569 samples, 30 features, binary classification). It serves as a rigorous proof-of-concept. The $2^3 \to 3^2$ compression layer is completely **data-agnostic** — it operates on any binarized tabular dataset, regardless of the domain.
-
-**5. How does SHAP work on a quantum circuit?**
-
-SHAP treats the model as a mathematical black box. It iteratively perturbs input features and measures output changes to compute Shapley values (from cooperative game theory). Because our VQC is wrapped inside a PyTorch `nn.Module`, SHAP interacts with it identically to how it would with a classical neural network — no modification to the SHAP algorithm is needed.
-
-**6. What is the CSUM gate?**
-
-The Controlled-SUM (CSUM) gate is the qutrit analogue of the qubit CNOT gate. Its action is: $|a, b\rangle \to |a, (a + b) \mod 3\rangle$. We apply CSUM gates in a **ring topology** (wire 0→1, 1→2, ..., 7→0) to entangle all qutrits in a circular chain, enabling the circuit to capture complex non-linear correlations between features.
+Please see our comprehensive **[FAQ & Defense Guide](docs/FAQ.md)** which covers the most critical questions about the architecture, including:
+- Why is the quantum accuracy lower than classical XGBoost?
+- How do we calculate the 72 parameter count vs 2,000+?
+- Is the $2^3 \to 3^2$ mapping a novel discovery?
+- How can we be sure this project is robust enough to simulate on a laptop?
+- How does SHAP run on a quantum circuit?
 
 ---
 

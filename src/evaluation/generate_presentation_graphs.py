@@ -18,7 +18,7 @@ COMPARE_COLORS = [CLASSICAL_COLOR, CLASSICAL_COLOR, CLASSICAL_COLOR, CLASSICAL_C
 # 1. ACCURACY COMPARISON BAR CHART
 # ==========================================
 models = ['MLP (Neural Net)', 'Random Forest', 'SVM (RBF)', 'XGBoost', 'Qutrit VQC (Ours)']
-accuracies = [92.10, 93.85, 93.85, 94.74, 88.60]
+accuracies = [92.10, 93.85, 93.85, 94.74, 87.72]
 
 plt.figure(figsize=(10, 6), dpi=300)
 bars = plt.bar(models, accuracies, color=COMPARE_COLORS, alpha=0.85, edgecolor='black', linewidth=1.5)
@@ -44,7 +44,7 @@ plt.close()
 # X-axis: Number of Parameters (Log scale)
 # Y-axis: Accuracy
 params = [3000, 1500, 1200, 1800, 72] # Approximations for classical, exact for quantum
-accuracies = [92.10, 93.85, 93.85, 94.74, 88.60]
+accuracies = [92.10, 93.85, 93.85, 94.74, 87.72]
 
 plt.figure(figsize=(10, 6), dpi=300)
 

@@ -44,20 +44,20 @@ Our end-to-end pipeline consists of four main pillars:
 
 **1. Model Convergence & Representation**
 <p align="center">
-  <img src="models/latest/graphs/training_loss.png" width="45%" />
-  <img src="models/latest/graphs/roc_curves.png" width="45%" />
+  <img src="showcase_graphs/training_loss.png" width="45%" />
+  <img src="showcase_graphs/roc_curves.png" width="45%" />
 </p>
 
 **2. Clinical Explainability (SHAP on Qutrit VQC)**
 <p align="center">
-  <img src="models/latest/graphs/shap_summary.png" width="45%" />
-  <img src="models/latest/graphs/shap_feature_importance.png" width="45%" />
+  <img src="showcase_graphs/shap_summary.png" width="45%" />
+  <img src="showcase_graphs/shap_feature_importance.png" width="45%" />
 </p>
 
 **3. Quantum Utility & Efficiency**
 <p align="center">
-  <img src="models/latest/graphs/accuracy_comparison.png" width="45%" />
-  <img src="models/latest/graphs/efficiency_diff_scatter.png" width="45%" />
+  <img src="showcase_graphs/accuracy_comparison.png" width="45%" />
+  <img src="showcase_graphs/efficiency_diff_scatter.png" width="45%" />
 </p>
 
 ---

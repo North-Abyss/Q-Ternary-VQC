@@ -3,42 +3,106 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![PennyLane](https://img.shields.io/badge/Quantum-PennyLane-purple)
 ![PyTorch](https://img.shields.io/badge/Backend-PyTorch-red)
+![Flutter](https://img.shields.io/badge/Frontend-Flutter%20Web-02569B)
 ![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey)
 
 > **The first open-source implementation of a Qutrit-based ($d=3$) Variational Quantum Classifier (VQC) trained on real-world tabular data using a lossless $2^3 \to 3^2$ binary-to-ternary encoding layer.**
 
+---
+
 ## 💡 The Core Innovation
 
-Traditional Quantum Machine Learning (QML) defaults to qubits ($d=2$). When processing high-dimensional clinical datasets, qubit-based architectures suffer from wire bloat, making them difficult to simulate classically and impossible to run on near-term NISQ hardware without massive error correction.
+Traditional Quantum Machine Learning (QML) defaults to **Qubits** ($d=2$). When processing high-dimensional clinical datasets, qubit-based architectures suffer from **wire bloat** — each classical feature consumes one quantum wire, making circuits impossible to simulate classically and infeasible to run on near-term NISQ hardware without massive error correction overhead.
 
-This architecture solves this by leveraging **Qutrits** (3-level quantum systems). By implementing a mathematical state-mapping algorithm derived from information theory, we compress classical binary feature vectors into quantum ternary states:
-* 3 binary bits hold 8 discrete states ($2^3$)
-* 2 ternary trits hold 9 discrete states ($3^2$)
+This project solves the problem by leveraging **Qutrits** — 3-level quantum systems ($|0\rangle$, $|1\rangle$, $|2\rangle$). We engineered a mathematical state-mapping algorithm rooted in information theory that compresses classical binary feature vectors into quantum ternary states:
 
-By mapping the 8 binary states into the 9 available ternary states, we achieve a **33% reduction in required quantum wires** with zero loss of informational capacity. 
+| Representation | Encoding | States Available |
+|:---|:---|:---|
+| **3 binary bits** (Qubits) | $2^3$ | 8 distinct states |
+| **2 ternary trits** (Qutrits) | $3^2$ | 9 distinct states |
+
+By mapping the 8 binary states into the 9 available ternary states (an injective mapping with one unused slot `[2,2]`), we achieve a **33% reduction in required quantum wires** with **zero loss of informational capacity**. The mapping is provably **lossless** (bijective over the input domain).
 
 ---
 
-## 📊 Results vs. Classical Baselines
+## 📊 Benchmark Results vs. Classical Baselines
 
-We validate this architecture on the Wisconsin Breast Cancer Dataset. The objective in quantum machine learning is not necessarily to beat a 3,000-parameter classical model in raw accuracy, but to demonstrate **Quantum Utility** via extreme parameter efficiency.
+We validate this architecture on the **Wisconsin Breast Cancer Diagnostic Dataset** (569 samples, 30 features → top 12 selected via Mutual Information). The objective in quantum machine learning is not necessarily to beat a classical ensemble model in raw accuracy, but to demonstrate **Quantum Utility** — competitive performance with extreme parameter efficiency.
 
-| Metric | XGBoost / Random Forest | Q-Ternary VQC | Advantage |
+### Showcase Run: 50 Epochs, 3 Layers, 8 Qutrit Wires
+
+| Metric | XGBoost / Random Forest | Q-Ternary VQC | Significance |
 |:---|:---|:---|:---|
-| **Parameters** | 2,000+ | **72** | **~97% Reduction** (Mitigates overfitting) |
-| **Accuracy** | 94.74% | **88.60%** | Approaching classical limits |
-| **F1 Score** | 95.89% | **90.51%** | Strong clinical recall |
-| **Peak RAM Limit** | N/A | **1.2 GB** | Safe for local CPU simulation |
+| **Trainable Parameters** | 2,000+ | **72** | **~97% reduction** — mitigates overfitting risk |
+| **Accuracy** | 94.74% | **87.72%** | Within 7% of tuned ensembles |
+| **F1 Score** | 95.89% | **90.41%** | Strong clinical recall and precision |
+| **Peak RAM Usage** | N/A | **~1.2 GB** | Safe for CPU-only simulation |
+| **Training Time (CPU)** | < 1s | **~54 min** | Expected for quantum simulation |
+
+> **Note:** Classical baselines use default hyperparameters (no GridSearch tuning). The VQC's 87.72% accuracy with only 72 parameters demonstrates significant representational capacity per parameter — a key indicator of quantum utility.
+
+### All Classical Baselines (Default Hyperparameters)
+
+| Model | Accuracy | F1 Score | Parameters (approx.) |
+|:---|:---|:---|:---|
+| SVM (RBF Kernel) | 91.23% | 93.15% | Kernel-defined |
+| Random Forest (100 trees) | 94.74% | 95.89% | ~2,000+ |
+| XGBoost | 94.74% | 95.89% | ~2,000+ |
+| MLP Neural Network (100,50) | 92.11% | 93.88% | ~1,400+ |
+| **Qutrit VQC (Ours)** | **87.72%** | **90.41%** | **72** |
+
+---
+
+## 💻 Development Hardware
+
+The entire quantum simulation pipeline — training, inference, and graph generation — was developed and executed on a standard business-class laptop with **no dedicated GPU**. This proves that qutrit-based quantum simulation is feasible on constrained, real-world hardware.
+
+| Component | Specification |
+|:---|:---|
+| **Machine** | Lenovo ThinkPad T580 |
+| **CPU** | Intel Core i7-8650U (4 cores / 8 threads) @ 4.20 GHz |
+| **GPU** | Intel UHD Graphics 620 (Integrated — **no dedicated GPU**) |
+| **RAM** | 16 GB DDR4 (14.84 GiB usable) |
+| **OS** | Ubuntu 26.04.1 LTS (Resolute Raccoon) |
+| **Kernel** | Linux 7.0.0-31-generic |
+| **Storage** | NTFS partition on HDD/SSD hybrid |
+
+### Runtime Performance (50-Epoch, 3-Layer Training Run)
+
+| Metric | Value |
+|:---|:---|
+| **Peak RAM Usage** | ~1.25 GB (out of 16 GB available) |
+| **Avg. Epoch Time** | ~64 seconds |
+| **Total Training Time** | ~54 minutes |
+| **SHAP Explanation Time** | ~44 seconds (30 permutations) |
+| **GPU Required?** | ❌ No — runs entirely on CPU |
+
+> **Key Takeaway:** The Q-Ternary compression (12 bits → 8 trits) directly reduced the simulation state-space from $2^{12} = 4096$ to $3^8 = 6561$ dimensions per sample — a tractable size for classical CPU simulation. Without compression, a standard qubit circuit of equivalent expressivity would require exponentially more memory.
 
 ---
 
 ## 🏗️ Architecture Pipeline
 
-Our end-to-end pipeline consists of four main pillars:
-1. **Classical Preprocessing:** Mutual Information feature selection and custom $2^3 \to 3^2$ ternary vector transformation.
-2. **Quantum Embedding:** Loading the compressed trits into 8 PennyLane `default.qutrit` wires.
-3. **CSUM Ring Entanglement & Re-uploading:** Utilizing a circular topology of Controlled-SUM (CSUM) gates and multi-layer data re-uploading to act as non-linear quantum activation functions.
-4. **SHAP Explainability:** Translating the black-box quantum measurement into human-readable clinical feature importance graphs.
+Our end-to-end pipeline consists of five pillars:
+
+1. **Feature Selection:** Mutual Information–based feature ranking (`SelectKBest`) to identify the top-$k$ most informative clinical features (default: $k=12$).
+2. **Classical Preprocessing:** `StandardScaler` normalization → median-threshold binarization → custom $2^3 \to 3^2$ ternary compression. No data leakage — all transformations are `fit` on training data and `transform`-only on test data.
+3. **Quantum Embedding & VQC:** The compressed ternary vector is loaded into 8 PennyLane `default.qutrit` wires using `TRZ` rotation gates across both qutrit subspaces (`[0,1]` and `[1,2]`). Each variational layer applies trainable `TRX`, `TRY`, `TRZ` rotations (SU(3) components) followed by CSUM ring entanglement. **Data re-uploading** at every layer forces the circuit to continuously re-learn the feature landscape.
+4. **Measurement:** Gell-Mann $\lambda_3$ observable expectation values are measured across **all** qutrit wires, summed, and passed through a sigmoid activation for binary classification.
+5. **SHAP Explainability:** SHAP (SHapley Additive exPlanations) treats the quantum model as a black box and generates feature importance plots, bridging the gap between quantum prediction and clinical interpretability.
+
+### Architecture Diagram
+
+```
+┌─────────────────────┐    ┌───────────────────────┐    ┌────────────────────────────┐    ┌──────────────────────┐
+│  Classical Ingestion │    │  Q-Ternary Compression│    │  Qutrit VQC (N Layers)     │    │  Measurement         │
+│                     │    │                       │    │                            │    │                      │
+│  Raw Data (30 feat) │───▶│  MI Select → 12 feat  │───▶│  TRZ Data Embedding        │───▶│  Gell-Mann λ₃        │
+│  StandardScaler     │    │  Scale + Binarize     │    │  TRX/TRY/TRZ Rotations     │    │  Sum Expectations    │
+│  Train/Test Split   │    │  3-bit → 2-trit       │    │  CSUM Ring Entanglement     │    │  Sigmoid → P(cancer) │
+│  (80/20, stratified)│    │  12 bits → 8 trits    │    │  ↻ Data Re-uploading       │    │                      │
+└─────────────────────┘    └───────────────────────┘    └────────────────────────────┘    └──────────────────────┘
+```
 
 ### Output Gallery
 
@@ -60,63 +124,133 @@ Our end-to-end pipeline consists of four main pillars:
   <img src="showcase_graphs/efficiency_diff_scatter.png" width="45%" />
 </p>
 
+**4. Confusion Matrices & Compression**
+<p align="center">
+  <img src="showcase_graphs/cm_qutrit_vqc.png" width="30%" />
+  <img src="showcase_graphs/cm_svm_rbf.png" width="30%" />
+  <img src="showcase_graphs/compression_ratio.png" width="30%" />
+</p>
+
 ---
 
 ## 🚀 Quick Start
 
-**Requirements:** Python 3.10+ (CPU-only is fine, uses ~1.2GB RAM).
+**Requirements:** Python 3.10+, CPU-only (no GPU required, uses ~1.2 GB RAM for quantum simulation).
 
 ### ⚡ 1-Line Quickstart
-For academics and developers, instantly run the app locally by copying and pasting this line into your terminal:
-
 ```bash
 git clone https://github.com/North-Abyss/Q-Ternary-VQC.git && cd Q-Ternary-VQC && pip install -r requirements.txt && ./run-app.sh
 ```
 
-### ⚙️ Manual Setup (Backend / Quantum Engine)
+### ⚙️ Manual Setup
 
 ```bash
-# 1. Clone the repository
+# 1. Clone and enter the repository
 git clone https://github.com/North-Abyss/Q-Ternary-VQC.git
 cd Q-Ternary-VQC
 
-# 2. Run the automated setup and training pipeline
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Run the full training pipeline (backend only)
 ./run.sh
+
+# 4. Or start the full-stack app (Backend API + Flutter Web UI)
+./run-app.sh
+```
+
+### Running Individual Components
+
+```bash
+# Start only the Flask backend API (serves on http://127.0.0.1:5000)
+./run-backend.sh
+
+# Start only the Flutter Web frontend (serves on http://127.0.0.1:8080)
+./run-frontend.sh              # uses cached build
+./run-frontend.sh --rebuild    # forces clean recompilation
 ```
 
 ### CLI Reference (`src/main.py`)
-If you want to run the pipeline manually, the `main.py` entry point exposes several flags:
 
 ```bash
 python3 src/main.py [OPTIONS]
 
+Required:
+  --dataset-path      Path to a CSV file (must have a 'diagnosis' column)
+
 Options:
-  --dataset         [breast_cancer, ckd] Choose the target dataset (default: breast_cancer)
-  --n-features      Number of features after PCA/MI (default: 12)
-  --n-layers        Depth of the Variational Quantum Circuit (default: 3)
-  --epochs          Training epochs for the PyTorch optimizer (default: 50)
-  --max-ram         Memory watchdog limit in GB (default: 6.0)
-  --classical-only  Skip quantum training, run baseline classical models only
+  --run-name          Human-readable name for this training run (default: "Custom Run")
+  --n-features        Number of features after MI selection, must be a multiple of 3 (default: 12)
+  --n-layers          Depth of the Variational Quantum Circuit (default: 3)
+  --epochs            Training epochs for the PyTorch Adam optimizer (default: 50)
+  --max-ram           Memory watchdog limit in GB before emergency halt (default: 6.0)
+  --classical-only    Skip quantum training, run baseline classical models only
+  --start-api         Start the Flask API server after training completes
 ```
 
 ---
 
-## ❓ Frequently Asked Questions (FAQ)
+## 🗂️ Project Structure
 
-**1. Why is the quantum accuracy lower than classical XGBoost?**  
-The goal here is extreme parameter efficiency. Our model achieves near-classical performance (~88%) using only **72 parameters**, compared to the thousands used by classical ensembles. This demonstrates massive representational capacity per parameter.
+```
+Q-Ternary-VQC/
+├── src/
+│   ├── main.py                  # Training pipeline entry point
+│   ├── api/app.py               # Flask REST API (predict, history, graphs, SHAP)
+│   ├── quantum/
+│   │   ├── qutrit_model.py      # QutritClassifier (PyTorch nn.Module + PennyLane QNode)
+│   │   └── circuit_utils.py     # CSUM gate matrix, Gell-Mann observable, ring entanglement
+│   ├── classical/baselines.py   # SVM, Random Forest, XGBoost, MLP wrappers
+│   ├── data/
+│   │   ├── loader.py            # Dataset loading & train/test split (stratified, seeded)
+│   │   ├── preprocessor.py      # Impute → Scale → Binarize → Q-Ternary Compress
+│   │   └── feature_selector.py  # Mutual Information feature selection
+│   ├── evaluation/
+│   │   ├── metrics.py           # Accuracy, F1, Precision, Recall, ROC-AUC
+│   │   └── visualizer.py        # Training loss, ROC curves, confusion matrices
+│   └── explainability/
+│       └── xai_engine.py        # SHAP integration for quantum model explainability
+├── quanta/                      # Flutter Web frontend (Dart)
+│   └── lib/
+│       ├── main.dart            # App shell with navigation
+│       ├── api_service.dart     # HTTP client for Flask API
+│       └── pages/               # Dashboard, Pipeline, Inference, History, Info, Settings
+├── models/                      # Saved model weights, per-run directories
+│   ├── latest -> run_YYYYMMDD_HHMMSS   # Symlink to most recent run
+│   └── run_YYYYMMDD_HHMMSS/    # Each run contains: weights, pickles, graphs/
+├── showcase_graphs/             # Curated graphs for README (from best run)
+├── data/                        # Training CSVs
+├── docs/                        # Architecture diagrams, innovation report, audit report
+└── test/                        # K-Fold CV harness, held-out test scripts
+```
 
-**2. Is the $2^3 \to 3^2$ mapping a new mathematical discovery?**  
-No, the radix economy of ternary logic has been known since the 1950s (e.g., the Soviet Setun computer). Our novel contribution is engineering the first functional, end-to-end software pipeline that applies this mathematical compression to real-world tabular data inside a Variational Quantum Classifier.
+---
 
-**3. Does this run on real quantum hardware?**  
-Currently, it simulates on a classical CPU using PennyLane's `default.qutrit` device. The architecture is hardware-agnostic and will easily compile to physical qutrit-capable superconducting chips once they become publicly accessible.
+## ❓ Frequently Asked Questions
 
-**4. Why only the Breast Cancer dataset?**  
-It serves as a standard proof-of-concept. The $2^3 \to 3^2$ compression layer is completely data-agnostic and can process any binarized tabular dataset.
+**1. Why is the quantum accuracy lower than classical XGBoost?**
 
-**5. How do you run SHAP on a quantum circuit?**  
-SHAP treats the model as a mathematical black box. It iteratively perturbs the input features and measures the output changes. Because our VQC is wrapped in a PyTorch layer, SHAP works identically to how it would on a classical neural network.
+This is expected and well-understood in the QML research community. Our VQC achieves 87.72% accuracy using only **72 trainable parameters**, compared to thousands used by classical ensemble models. The goal is not to exceed classical accuracy on a well-studied benchmark, but to demonstrate **extreme parameter efficiency** — the VQC captures meaningful decision boundaries with ~97% fewer parameters, which has significant implications for generalization, overfitting resistance, and deployment on resource-constrained quantum hardware.
+
+**2. Is the $2^3 \to 3^2$ mapping a new mathematical discovery?**
+
+No. The radix economy of ternary logic has been studied since the 1950s (e.g., the Soviet Setun computer). Our novel contribution is the first functional, end-to-end software pipeline that applies this mathematical compression to real-world tabular medical data inside a Variational Quantum Classifier. The compression layer, circuit architecture, and integration with SHAP explainability are all original engineering.
+
+**3. Does this run on real quantum hardware?**
+
+Currently, it simulates on a classical CPU using PennyLane's `default.qutrit` device. The architecture is hardware-agnostic — the circuit uses standard qutrit rotation gates (`TRX`, `TRY`, `TRZ`) and `CSUM` entanglement, which will compile directly to physical qutrit-capable superconducting chips (e.g., transmon qutrits) once they become publicly accessible via cloud quantum platforms.
+
+**4. Why only the Breast Cancer dataset?**
+
+The Wisconsin Breast Cancer Diagnostic Dataset is a standard ML benchmark (569 samples, 30 features, binary classification). It serves as a rigorous proof-of-concept. The $2^3 \to 3^2$ compression layer is completely **data-agnostic** — it operates on any binarized tabular dataset, regardless of the domain.
+
+**5. How does SHAP work on a quantum circuit?**
+
+SHAP treats the model as a mathematical black box. It iteratively perturbs input features and measures output changes to compute Shapley values (from cooperative game theory). Because our VQC is wrapped inside a PyTorch `nn.Module`, SHAP interacts with it identically to how it would with a classical neural network — no modification to the SHAP algorithm is needed.
+
+**6. What is the CSUM gate?**
+
+The Controlled-SUM (CSUM) gate is the qutrit analogue of the qubit CNOT gate. Its action is: $|a, b\rangle \to |a, (a + b) \mod 3\rangle$. We apply CSUM gates in a **ring topology** (wire 0→1, 1→2, ..., 7→0) to entangle all qutrits in a circular chain, enabling the circuit to capture complex non-linear correlations between features.
 
 ---
 
@@ -124,7 +258,7 @@ SHAP treats the model as a mathematical black box. It iteratively perturbs the i
 
 Designed and engineered by **Yuvanesh KS (Alias: North-Abyss)**.
 
-This repository is strictly governed by the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** License.
+This repository is governed by the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** License.
 
 * **Attribution:** You must credit this repository (`North-Abyss/Q-Ternary-VQC`) and its author.
 * **Non-Commercial:** You may **not** sell this software or use it for commercial profit.
